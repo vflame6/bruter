@@ -95,10 +95,10 @@ func ClickHouseHandler(targetMutex *sync.Mutex, wg *sync.WaitGroup, credentials 
 			}
 			continue
 		}
-		logger.Successf("[clickhouse] %s:%d [%s] [%s]", target.IP, target.Port, credential.Username, credential.Password)
 		targetMutex.Lock()
 		target.Success = true
 		targetMutex.Unlock()
+		logger.Successf("[clickhouse] %s:%d [%s] [%s]", target.IP, target.Port, credential.Username, credential.Password)
 
 		if opts.OutputFile != nil {
 			opts.FileMutex.Lock()

@@ -22,6 +22,7 @@ Available modules:
 
 - `ftp`
 - `clickhouse`
+- `mongo`
 
 ## Usage
 
@@ -56,6 +57,7 @@ Commands:
   help [<command>...]
   ftp <target>
   clickhouse <target>
+  mongo <target>
 ```
 
 Targets are specified in format `IP` or `IP:PORT`. If `PORT` is not specified, the tool uses the default one (for example: `9000` for ClickHouse). 

@@ -13,16 +13,19 @@ import (
 var DefaultPorts = map[string]int{
 	"ftp":        21,
 	"clickhouse": 9000,
+	"mongo":      27017,
 }
 
 var CommandHandlers = map[string]CommandHandler{
 	"ftp":        FTPHandler,
 	"clickhouse": ClickHouseHandler,
+	"mongo":      MongoHandler,
 }
 
 var CheckerHandlers = map[string]CheckerHandler{
 	"ftp":        FTPChecker,
 	"clickhouse": ClickHouseChecker,
+	"mongo":      MongoChecker,
 }
 
 // CommandHandler is an interface for one bruteforcing thread
@@ -149,17 +152,6 @@ func (s *Scanner) Run(command, targets string) error {
 
 	go func() {
 		for _, target := range s.Targets {
-			defaultCreds, encryption, err := checker(target, s.Opts)
-			if err != nil {
-				logger.Debug(err)
-				continue
-			}
-			target.Encryption = encryption
-			if defaultCreds {
-				target.Success = defaultCreds
-				continue
-			}
-
 			parallelTargets <- target
 		}
 		close(parallelTargets)
@@ -168,20 +160,32 @@ func (s *Scanner) Run(command, targets string) error {
 	for i := 0; i < s.Parallel; i++ {
 		parallelWg.Add(1)
 
-		go s.ThreadedHandler(&parallelWg, parallelTargets, handler)
+		go s.ThreadedHandler(&parallelWg, parallelTargets, checker, handler)
 	}
 	parallelWg.Wait()
 
 	return nil
 }
 
-func (s *Scanner) ThreadedHandler(wg *sync.WaitGroup, targets <-chan *Target, handler CommandHandler) {
+func (s *Scanner) ThreadedHandler(wg *sync.WaitGroup, targets <-chan *Target, checker CheckerHandler, handler CommandHandler) {
 	defer wg.Done()
 
 	for {
 		target, ok := <-targets
 		if !ok {
 			break
+		}
+
+		// check with checker
+		defaultCreds, encryption, err := checker(target, s.Opts)
+		if err != nil {
+			logger.Debug(err)
+			continue
+		}
+		target.Encryption = encryption
+		if defaultCreds {
+			target.Success = true
+			continue
 		}
 
 		credentials := make(chan *Credential, 256)

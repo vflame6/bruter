@@ -83,10 +83,10 @@ func FTPHandler(targetMutex *sync.Mutex, wg *sync.WaitGroup, credentials <-chan 
 			}
 			continue
 		}
-		logger.Successf("[ftp] %s:%d [%s] [%s]", target.IP, target.Port, credential.Username, credential.Password)
 		targetMutex.Lock()
 		target.Success = true
 		targetMutex.Unlock()
+		logger.Successf("[ftp] %s:%d [%s] [%s]", target.IP, target.Port, credential.Username, credential.Password)
 
 		if opts.OutputFile != nil {
 			opts.FileMutex.Lock()

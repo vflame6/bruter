@@ -32,13 +32,18 @@ var (
 
 	// ftp
 	// default port 21
-	ftpCommand   = app.Command("ftp", "ftp module")
+	ftpCommand   = app.Command("ftp", "FTP module")
 	ftpTargetArg = ftpCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
 
 	// clickhouse
 	// default port 9000
-	clickhouseCommand   = app.Command("clickhouse", "clickhouse module")
+	clickhouseCommand   = app.Command("clickhouse", "ClickHouse module")
 	clickhouseTargetArg = clickhouseCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
+
+	// mongodb
+	// default port 27017
+	mongoCommand   = app.Command("mongo", "MongoDB module")
+	mongoTargetArg = mongoCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
 )
 
 // PrintBanner is a function to print program banner
@@ -88,11 +93,14 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	if command == ftpCommand.FullCommand() {
+		err = s.Run(command, *ftpTargetArg)
+	}
 	if command == clickhouseCommand.FullCommand() {
 		err = s.Run(command, *clickhouseTargetArg)
 	}
-	if command == ftpCommand.FullCommand() {
-		err = s.Run(command, *ftpTargetArg)
+	if command == mongoCommand.FullCommand() {
+		err = s.Run(command, *mongoTargetArg)
 	}
 	if err != nil {
 		logger.Fatal(err)
