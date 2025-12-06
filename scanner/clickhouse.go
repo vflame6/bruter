@@ -29,12 +29,7 @@ func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
 	if err == nil {
 		defer conn.Close()
 
-		logger.Successf("[clickhouse] %s:%d [%s] [%s]", target.IP, target.Port, defaultUsername, defaultPassword)
-		if opts.OutputFile != nil {
-			opts.FileMutex.Lock()
-			_, _ = opts.OutputFile.WriteString(fmt.Sprintf("[clickhouse] %s:%d [%s] [%s]\n", target.IP, target.Port, defaultUsername, defaultPassword))
-			opts.FileMutex.Unlock()
-		}
+		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 		return true, true, nil
 	}
 
@@ -49,12 +44,7 @@ func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
 		conn, errType, err = TestClickHouseConnection(target.IP, target.Port, false, defaultUsername, defaultPassword, opts.Timeout)
 		if err == nil {
 			defer conn.Close()
-			logger.Successf("[clickhouse] %s:%d [%s] [%s]", target.IP, target.Port, defaultUsername, defaultPassword)
-			if opts.OutputFile != nil {
-				opts.FileMutex.Lock()
-				_, _ = opts.OutputFile.WriteString(fmt.Sprintf("[clickhouse] %s:%d [%s] [%s]\n", target.IP, target.Port, defaultUsername, defaultPassword))
-				opts.FileMutex.Unlock()
-			}
+			RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 			return true, false, nil
 		}
 
@@ -67,7 +57,7 @@ func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // ClickHouseHandler is an implementation of CommandHandler for ClickHouse service
-func ClickHouseHandler(targetMutex *sync.Mutex, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
+func ClickHouseHandler(wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
 	defer wg.Done()
 
 	for {
@@ -95,16 +85,9 @@ func ClickHouseHandler(targetMutex *sync.Mutex, wg *sync.WaitGroup, credentials 
 			}
 			continue
 		}
-		targetMutex.Lock()
-		target.Success = true
-		targetMutex.Unlock()
-		logger.Successf("[clickhouse] %s:%d [%s] [%s]", target.IP, target.Port, credential.Username, credential.Password)
 
-		if opts.OutputFile != nil {
-			opts.FileMutex.Lock()
-			_, _ = opts.OutputFile.WriteString(fmt.Sprintf("[clickhouse] %s:%d [%s] [%s]\n", target.IP, target.Port, credential.Username, credential.Password))
-			opts.FileMutex.Unlock()
-		}
+		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, credential.Username, credential.Password)
+
 		if opts.Delay > 0 {
 			time.Sleep(opts.Delay)
 		}

@@ -20,9 +20,10 @@
 
 Available modules:
 
-- `ftp`
 - `clickhouse`
+- `ftp`
 - `mongo`
+- `smpp`
 
 ## Usage
 
@@ -53,11 +54,7 @@ Flags:
   -p, --password=PASSWORD     Password or file with passwords
   --[no-]version          Show application version.
 
-Commands:
-  help [<command>...]
-  ftp <target>
-  clickhouse <target>
-  mongo <target>
+Commands: clickhouse ftp mongo smpp
 ```
 
 Targets are specified in format `IP` or `IP:PORT`. If `PORT` is not specified, the tool uses the default one (for example: `9000` for ClickHouse). 

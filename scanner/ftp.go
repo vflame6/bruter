@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// FTPChecker is an implementation of CheckerHandler for ClickHouse service
+// FTPChecker is an implementation of CheckerHandler for FTP service
 // the return values are:
 // DEFAULT (bool) for test if the target has default credentials
 // ENCRYPTION (bool) for test if the target is using encryption
@@ -29,7 +29,7 @@ func FTPChecker(target *Target, opts *Options) (bool, bool, error) {
 		logger.Debugf("trying default credentials on %s:%d", target.IP, target.Port)
 		err = conn.Login(defaultUsername, defaultPassword)
 		if err == nil {
-			logger.Successf("[ftp] %s:%d [%s] [%s]", target.IP, target.Port, defaultUsername, defaultPassword)
+			RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 			success = true
 		}
 		conn.Quit()
@@ -41,7 +41,7 @@ func FTPChecker(target *Target, opts *Options) (bool, bool, error) {
 			logger.Debugf("trying default credentials on %s:%d", target.IP, target.Port)
 			err = conn.Login(defaultUsername, defaultPassword)
 			if err == nil {
-				logger.Successf("[ftp] %s:%d [%s] [%s]", target.IP, target.Port, defaultUsername, defaultPassword)
+				RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 				success = true
 			}
 			conn.Quit()
@@ -54,8 +54,8 @@ func FTPChecker(target *Target, opts *Options) (bool, bool, error) {
 	return success, secure, nil
 }
 
-// FTPHandler is an implementation of CommandHandler for ClickHouse service
-func FTPHandler(targetMutex *sync.Mutex, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
+// FTPHandler is an implementation of CommandHandler for FTP service
+func FTPHandler(wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
 	defer wg.Done()
 
 	for {
@@ -83,16 +83,8 @@ func FTPHandler(targetMutex *sync.Mutex, wg *sync.WaitGroup, credentials <-chan 
 			}
 			continue
 		}
-		targetMutex.Lock()
-		target.Success = true
-		targetMutex.Unlock()
-		logger.Successf("[ftp] %s:%d [%s] [%s]", target.IP, target.Port, credential.Username, credential.Password)
+		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, credential.Username, credential.Password)
 
-		if opts.OutputFile != nil {
-			opts.FileMutex.Lock()
-			_, _ = opts.OutputFile.WriteString(fmt.Sprintf("[ftp] %s:%d [%s] [%s]\n", target.IP, target.Port, credential.Username, credential.Password))
-			opts.FileMutex.Unlock()
-		}
 		if opts.Delay > 0 {
 			time.Sleep(opts.Delay)
 		}

@@ -30,20 +30,28 @@ var (
 	usernameFlag = app.Flag("username", "Username or file with usernames").Short('u').Required().String()
 	passwordFlag = app.Flag("password", "Password or file with passwords").Short('p').Required().String()
 
-	// ftp
-	// default port 21
-	ftpCommand   = app.Command("ftp", "FTP module")
-	ftpTargetArg = ftpCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
+	// available modules
+	// sort alphabetically
 
 	// clickhouse
 	// default port 9000
 	clickhouseCommand   = app.Command("clickhouse", "ClickHouse module")
 	clickhouseTargetArg = clickhouseCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
 
+	// ftp
+	// default port 21
+	ftpCommand   = app.Command("ftp", "FTP module")
+	ftpTargetArg = ftpCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
+
 	// mongodb
 	// default port 27017
 	mongoCommand   = app.Command("mongo", "MongoDB module")
 	mongoTargetArg = mongoCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
+
+	// smpp
+	// default port 2775
+	smppCommand   = app.Command("smpp", "SMPP module")
+	smppTargetArg = smppCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
 )
 
 // PrintBanner is a function to print program banner
@@ -52,14 +60,26 @@ func PrintBanner() {
 }
 
 func main() {
-	// VERSION is linked to actual tag
-	VERSION := "0.0.3"
+	// VERSION should be linked to actual tag
+	VERSION := "0.0.5"
 
 	// kingpin settings
 	app.Version(VERSION)
 	app.Author("vflame6")
 	app.HelpFlag.Short('h')
-	app.UsageTemplate(kingpin.CompactUsageTemplate)
+	app.UsageTemplate(CustomUsageTemplate)
+
+	// Parse into context first (doesn't validate required flags yet)
+	ctx, err := app.ParseContext(os.Args[1:])
+	if err != nil {
+		app.FatalUsage(err.Error())
+	}
+
+	// Check if no command was selected
+	if ctx.SelectedCommand == nil {
+		app.Usage(os.Args[1:])
+		os.Exit(0)
+	}
 
 	// parse options
 	command := kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -93,14 +113,17 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	if command == ftpCommand.FullCommand() {
-		err = s.Run(command, *ftpTargetArg)
-	}
 	if command == clickhouseCommand.FullCommand() {
 		err = s.Run(command, *clickhouseTargetArg)
 	}
+	if command == ftpCommand.FullCommand() {
+		err = s.Run(command, *ftpTargetArg)
+	}
 	if command == mongoCommand.FullCommand() {
 		err = s.Run(command, *mongoTargetArg)
+	}
+	if command == smppCommand.FullCommand() {
+		err = s.Run(command, *smppTargetArg)
 	}
 	if err != nil {
 		logger.Fatal(err)
@@ -112,3 +135,47 @@ func main() {
 		logger.Infof("finished execution of %s module", command)
 	}
 }
+
+var CustomUsageTemplate = `{{define "FormatCommand" -}}
+{{if .FlagSummary}} {{.FlagSummary}}{{end -}}
+{{range .Args}}{{if not .Hidden}} {{if not .Required}}[{{end}}{{if .PlaceHolder}}{{.PlaceHolder}}{{else}}<{{.Name}}>{{end}}{{if .Value|IsCumulative}}...{{end}}{{if not .Required}}]{{end}}{{end}}{{end -}}
+{{end -}}
+
+{{define "FormatCommandList" -}}
+{{range . -}}
+{{if not .Hidden -}}
+{{if ne .Name "help"}}{{.Name}} {{end -}}
+{{end -}}
+{{template "FormatCommandList" .Commands -}}
+{{end -}}
+{{end -}}
+
+{{define "FormatUsage" -}}
+{{template "FormatCommand" .}}{{if .Commands}} <command> [<args> ...]{{end}}
+{{if .Help}}
+{{.Help|Wrap 0 -}}
+{{end -}}
+
+{{end -}}
+
+{{if .Context.SelectedCommand -}}
+usage: {{.App.Name}} {{.Context.SelectedCommand}}{{template "FormatUsage" .Context.SelectedCommand}}
+{{else -}}
+usage: {{.App.Name}}{{template "FormatUsage" .App}}
+{{end -}}
+{{if .Context.Flags -}}
+Flags:
+{{.Context.Flags|FlagsToTwoColumns|FormatTwoColumns}}
+{{end -}}
+{{if .Context.Args -}}
+Args:
+{{.Context.Args|ArgsToTwoColumns|FormatTwoColumns}}
+{{end -}}
+{{if .Context.SelectedCommand -}}
+{{if .Context.SelectedCommand.Commands -}}
+Commands: {{template "FormatCommandList" .Context.SelectedCommand.Commands}}
+{{end -}}
+{{else if .App.Commands -}}
+Commands: {{template "FormatCommandList" .App.Commands}}
+{{end -}}
+`

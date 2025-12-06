@@ -16,14 +16,17 @@ import (
 	"time"
 )
 
-// MongoChecker is an implementation of CheckerHandler for ClickHouse service
+// MongoChecker is an implementation of CheckerHandler for MongoDB service
 func MongoChecker(target *Target, opts *Options) (bool, bool, error) {
+	defaultUsername := ""
+	defaultPassword := ""
+
 	logger.Debugf("trying default credentials on %s:%d", target.IP, target.Port)
 	// Try TLS first
 	client, err := GetDefaultMongoConnection(target.IP, target.Port, true, opts.Timeout)
 	if err == nil {
 		defer client.Disconnect(context.Background())
-		logger.Successf("[mongo] %s:%d [] []", target.IP, target.Port)
+		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 		return true, true, nil
 	}
 
@@ -37,7 +40,7 @@ func MongoChecker(target *Target, opts *Options) (bool, bool, error) {
 	client, err = GetDefaultMongoConnection(target.IP, target.Port, false, opts.Timeout)
 	if err == nil {
 		defer client.Disconnect(context.Background())
-		logger.Successf("[mongo] %s:%d [] []", target.IP, target.Port)
+		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 		return true, false, nil
 	}
 	errType = classifyMongoError(err)
@@ -48,8 +51,8 @@ func MongoChecker(target *Target, opts *Options) (bool, bool, error) {
 	return false, false, fmt.Errorf("connection failed: %w", err)
 }
 
-// MongoHandler is an implementation of CommandHandler for ClickHouse service
-func MongoHandler(targetMutex *sync.Mutex, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
+// MongoHandler is an implementation of CommandHandler for MongoDB service
+func MongoHandler(wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
 	defer wg.Done()
 
 	for {
@@ -72,16 +75,8 @@ func MongoHandler(targetMutex *sync.Mutex, wg *sync.WaitGroup, credentials <-cha
 			continue
 		}
 
-		targetMutex.Lock()
-		target.Success = true
-		targetMutex.Unlock()
-		logger.Successf("[mongo] %s:%d [%s] [%s]", target.IP, target.Port, credential.Username, credential.Password)
+		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, credential.Username, credential.Password)
 
-		if opts.OutputFile != nil {
-			opts.FileMutex.Lock()
-			_, _ = opts.OutputFile.WriteString(fmt.Sprintf("[mongo] %s:%d [%s] [%s]\n", target.IP, target.Port, credential.Username, credential.Password))
-			opts.FileMutex.Unlock()
-		}
 		if opts.Delay > 0 {
 			time.Sleep(opts.Delay)
 		}

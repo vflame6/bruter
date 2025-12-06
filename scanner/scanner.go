@@ -3,6 +3,7 @@ package scanner
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"github.com/vflame6/bruter/logger"
 	"net"
 	"os"
@@ -10,26 +11,21 @@ import (
 	"time"
 )
 
-var DefaultPorts = map[string]int{
-	"ftp":        21,
-	"clickhouse": 9000,
-	"mongo":      27017,
+var Commands = map[string]Command{
+	"clickhouse": {9000, ClickHouseHandler, ClickHouseChecker},
+	"ftp":        {21, FTPHandler, FTPChecker},
+	"mongo":      {27017, MongoHandler, MongoChecker},
+	"smpp":       {2775, SMPPHandler, SMPPChecker},
 }
 
-var CommandHandlers = map[string]CommandHandler{
-	"ftp":        FTPHandler,
-	"clickhouse": ClickHouseHandler,
-	"mongo":      MongoHandler,
-}
-
-var CheckerHandlers = map[string]CheckerHandler{
-	"ftp":        FTPChecker,
-	"clickhouse": ClickHouseChecker,
-	"mongo":      MongoChecker,
+type Command struct {
+	DefaultPort int
+	Handler     CommandHandler
+	Checker     CheckerHandler
 }
 
 // CommandHandler is an interface for one bruteforcing thread
-type CommandHandler func(targetMutex *sync.Mutex, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target)
+type CommandHandler func(wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target)
 
 // CheckerHandler is an interface for service checker function
 // the return values are:
@@ -47,6 +43,7 @@ type Scanner struct {
 }
 
 type Options struct {
+	Command        string
 	Timeout        time.Duration
 	Threads        int
 	Delay          time.Duration
@@ -63,6 +60,7 @@ type Target struct {
 	Port       int
 	Encryption bool
 	Success    bool
+	Mutex      sync.Mutex
 }
 
 type Credential struct {
@@ -127,14 +125,12 @@ func (s *Scanner) Stop() {
 // Run method is used to handle parallel execution
 func (s *Scanner) Run(command, targets string) error {
 	// check if command is valid
-	handler, ok := CommandHandlers[command]
+	c, ok := Commands[command]
 	if !ok {
-		return errors.New("unknown command")
+		return errors.New("invalid command")
 	}
-	checker, ok := CheckerHandlers[command]
-	if !ok {
-		return errors.New("unknown command")
-	}
+
+	s.Opts.Command = command
 
 	// check if delay is set
 	if s.Opts.Delay > 0 {
@@ -142,7 +138,7 @@ func (s *Scanner) Run(command, targets string) error {
 	}
 
 	// import targets
-	err := s.ImportTargets(command, targets)
+	err := s.ImportTargets(c.DefaultPort, targets)
 	if err != nil {
 		return err
 	}
@@ -160,7 +156,7 @@ func (s *Scanner) Run(command, targets string) error {
 	for i := 0; i < s.Parallel; i++ {
 		parallelWg.Add(1)
 
-		go s.ThreadedHandler(&parallelWg, parallelTargets, checker, handler)
+		go s.ThreadedHandler(&parallelWg, parallelTargets, c.Checker, c.Handler)
 	}
 	parallelWg.Wait()
 
@@ -182,9 +178,12 @@ func (s *Scanner) ThreadedHandler(wg *sync.WaitGroup, targets <-chan *Target, ch
 			logger.Debug(err)
 			continue
 		}
+
+		// assign if encryption is used
 		target.Encryption = encryption
-		if defaultCreds {
-			target.Success = true
+
+		// skip target if default credentials are found and --stop-on-success is enabled
+		if defaultCreds && s.Opts.StopOnSuccess {
 			continue
 		}
 
@@ -201,16 +200,13 @@ func (s *Scanner) ThreadedHandler(wg *sync.WaitGroup, targets <-chan *Target, ch
 		var threadWg sync.WaitGroup
 		for i := 0; i < s.Opts.Threads; i++ {
 			threadWg.Add(1)
-			var threadMutex sync.Mutex
-			go handler(&threadMutex, &threadWg, credentials, s.Opts, target)
+			go handler(&threadWg, credentials, s.Opts, target)
 		}
 		threadWg.Wait()
 	}
 }
 
-func (s *Scanner) ImportTargets(command, filename string) error {
-	defaultPort := DefaultPorts[command]
-
+func (s *Scanner) ImportTargets(defaultPort int, filename string) error {
 	var targets []*Target
 
 	if IsFileExists(filename) {
@@ -242,4 +238,20 @@ func (s *Scanner) ImportTargets(command, filename string) error {
 	}
 	s.Targets = targets
 	return nil
+}
+
+func RegisterSuccess(outputFile *os.File, fileMutex *sync.Mutex, command string, target *Target, username, password string) {
+	target.Mutex.Lock()
+	target.Success = true
+	target.Mutex.Unlock()
+
+	successString := fmt.Sprintf("[%s] %s:%d [%s] [%s]", command, target.IP, target.Port, username, password)
+
+	logger.Successf(successString)
+
+	if outputFile != nil {
+		fileMutex.Lock()
+		_, _ = outputFile.WriteString(successString)
+		fileMutex.Unlock()
+	}
 }
