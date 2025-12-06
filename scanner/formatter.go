@@ -26,14 +26,14 @@ func ParseTarget(target string, defaultPort int) (*Target, error) {
 			return nil, errors.New("invalid port number, format 1-65535")
 		}
 
-		return &Target{IP: ip, Port: port, Encryption: false, Success: false}, nil
+		return &Target{IP: ip, Port: port, Encryption: false, Success: false, Retries: 0}, nil
 	}
 	if len(testTarget) == 1 {
 		ip := net.ParseIP(testTarget[0])
 		if ip == nil {
 			return nil, errors.New("invalid ip address")
 		}
-		return &Target{IP: ip, Port: defaultPort, Encryption: false, Success: false}, nil
+		return &Target{IP: ip, Port: defaultPort, Encryption: false, Success: false, Retries: 0}, nil
 	}
 	return nil, errors.New("target is not a valid IP, IP:PORT or filename")
 }

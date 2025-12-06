@@ -12,7 +12,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -52,35 +51,23 @@ func MongoChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // MongoHandler is an implementation of CommandHandler for MongoDB service
-func MongoHandler(wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
-	defer wg.Done()
-
-	for {
-		credential, ok := <-credentials
-		if !ok {
-			break
+// the return values are:
+// IsConnected (bool) to test if connection to the target is successful
+// IsAuthenticated (bool) to test if authentication is successful
+func MongoHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
+	client, err := GetAuthenticatedMongoConnection(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password)
+	if err != nil {
+		// check if it is a connection error
+		if classifyMongoError(err) != "auth_error" {
+			return false, false
 		}
-		// shutdown all threads if --stop-on-success is used and password is found
-		if opts.StopOnSuccess && target.Success {
-			break
-		}
-
-		logger.Debugf("trying %s:%d with credential %s:%s", target.IP, target.Port, credential.Username, credential.Password)
-
-		_, err := GetAuthenticatedMongoConnection(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password)
-		if err != nil {
-			if opts.Delay > 0 {
-				time.Sleep(opts.Delay)
-			}
-			continue
-		}
-
-		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, credential.Username, credential.Password)
-
-		if opts.Delay > 0 {
-			time.Sleep(opts.Delay)
-		}
+		// connected but not authenticated
+		return true, false
 	}
+	_ = client.Disconnect(context.Background())
+
+	// connected and authenticated
+	return true, true
 }
 
 func GetDefaultMongoConnection(address net.IP, port int, secure bool, timeout time.Duration) (*mongo.Client, error) {
@@ -142,6 +129,7 @@ func GetAuthenticatedMongoConnection(address net.IP, port int, secure bool, time
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
+	// Verify connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

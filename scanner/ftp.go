@@ -6,7 +6,6 @@ import (
 	"github.com/jlaffaye/ftp"
 	"github.com/vflame6/bruter/logger"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -55,40 +54,24 @@ func FTPChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // FTPHandler is an implementation of CommandHandler for FTP service
-func FTPHandler(wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
-	defer wg.Done()
-
-	for {
-		credential, ok := <-credentials
-		if !ok {
-			break
-		}
-		// shutdown all threads if --stop-on-success is used and password is found
-		if opts.StopOnSuccess && target.Success {
-			break
-		}
-		logger.Debugf("trying %s:%d with credential %s:%s", target.IP, target.Port, credential.Username, credential.Password)
-		conn, err := GetFTPConnection(target.IP, target.Port, target.Encryption, opts.Timeout)
-		if err != nil {
-			if opts.Delay > 0 {
-				time.Sleep(opts.Delay)
-			}
-			continue
-		}
-		defer conn.Quit()
-		err = conn.Login(credential.Username, credential.Password)
-		if err != nil {
-			if opts.Delay > 0 {
-				time.Sleep(opts.Delay)
-			}
-			continue
-		}
-		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, credential.Username, credential.Password)
-
-		if opts.Delay > 0 {
-			time.Sleep(opts.Delay)
-		}
+// the return values are:
+// IsConnected (bool) to test if connection to the target is successful
+// IsAuthenticated (bool) to test if authentication is successful
+func FTPHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
+	conn, err := GetFTPConnection(target.IP, target.Port, target.Encryption, opts.Timeout)
+	if err != nil {
+		// not connected
+		return false, false
 	}
+	defer conn.Quit()
+	err = conn.Login(credential.Username, credential.Password)
+	if err != nil {
+		// connected, but not authenticated
+		return true, false
+	}
+
+	// connected and authenticated
+	return true, true
 }
 
 func GetFTPConnection(ip net.IP, port int, encryption bool, timeout time.Duration) (*ftp.ServerConn, error) {

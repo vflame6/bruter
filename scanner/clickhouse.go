@@ -11,7 +11,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -57,41 +56,33 @@ func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // ClickHouseHandler is an implementation of CommandHandler for ClickHouse service
-func ClickHouseHandler(wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
-	defer wg.Done()
-
-	for {
-		credential, ok := <-credentials
-		if !ok {
-			break
-		}
-		// shutdown all threads if --stop-on-success is used and password is found
-		if opts.StopOnSuccess && target.Success {
-			break
-		}
-		logger.Debugf("trying %s:%d with credential %s:%s", target.IP, target.Port, credential.Username, credential.Password)
-		conn, err := GetClickHouseConnection(target.IP, target.Port, target.Encryption, credential.Username, credential.Password, opts.Timeout)
-		if err != nil {
-			if opts.Delay > 0 {
-				time.Sleep(opts.Delay)
-			}
-			continue
-		}
-		defer conn.Close()
-		err = conn.Ping(context.Background())
-		if err != nil {
-			if opts.Delay > 0 {
-				time.Sleep(opts.Delay)
-			}
-			continue
-		}
-
-		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, credential.Username, credential.Password)
-
-		if opts.Delay > 0 {
-			time.Sleep(opts.Delay)
-		}
+// the return values are:
+// IsConnected (bool) to test if connection to the target is successful
+// IsAuthenticated (bool) to test if authentication is successful
+func ClickHouseHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
+	// get connection object
+	conn, err := GetClickHouseConnection(target.IP, target.Port, target.Encryption, credential.Username, credential.Password, opts.Timeout)
+	if err != nil {
+		// something wrong with library I guess, we do not perform connection here
+		return false, false
 	}
+	defer conn.Close()
+
+	// test connection and authentication
+	err = conn.Ping(context.Background())
+	if err != nil {
+		errType := classifyClickHouseError(err)
+		if errType != "auth_error" {
+			// if errType is not auth_error, then the connection is failed
+			return false, false
+		}
+
+		// connected and not authenticated
+		return true, false
+	}
+
+	// connected and authenticated
+	return true, true
 }
 
 func GetClickHouseConnection(address net.IP, port int, secure bool, username, password string, timeout time.Duration) (driver.Conn, error) {
@@ -142,7 +133,7 @@ func TestClickHouseConnection(address net.IP, port int, secure bool, username, p
 
 	conn, err := clickhouse.Open(opts)
 	if err != nil {
-		return nil, clickHouseErrors(err), err
+		return nil, classifyClickHouseError(err), err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -150,13 +141,13 @@ func TestClickHouseConnection(address net.IP, port int, secure bool, username, p
 
 	if err := conn.Ping(ctx); err != nil {
 		conn.Close()
-		return nil, clickHouseErrors(err), err
+		return nil, classifyClickHouseError(err), err
 	}
 
 	return conn, "", nil
 }
 
-func clickHouseErrors(err error) string {
+func classifyClickHouseError(err error) string {
 	if err == nil {
 		return "no error"
 	}

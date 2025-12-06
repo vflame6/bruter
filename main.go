@@ -25,6 +25,7 @@ var (
 	delayFlag         = app.Flag("delay", "Delay in millisecond between each attempt. Will always use single thread if set").Short('d').Default("0").Int()
 	timeoutFlag       = app.Flag("timeout", "Connection timeout in seconds").Default("5").Int()
 	stopOnSuccessFlag = app.Flag("stop-on-success", "Stop bruteforcing host on first success").Default("false").Bool()
+	retryFlag         = app.Flag("max-retries", "Number of connection errors to stop bruteforcing host. Specify 0 to disable this behavior").Default("30").Int()
 
 	// wordlist flags
 	usernameFlag = app.Flag("username", "Username or file with usernames").Short('u').Required().String()
@@ -106,6 +107,7 @@ func main() {
 		*threadsFlag,
 		*delayFlag,
 		*stopOnSuccessFlag,
+		*retryFlag,
 		*usernameFlag,
 		*passwordFlag,
 	)

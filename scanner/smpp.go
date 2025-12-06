@@ -10,7 +10,6 @@ import (
 	"github.com/vflame6/bruter/logger"
 	"net"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -93,36 +92,23 @@ func SMPPChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // SMPPHandler is an implementation of CommandHandler for SMPP service
-func SMPPHandler(wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
-	defer wg.Done()
-
-	for {
-		credential, ok := <-credentials
-		if !ok {
-			break
+// the return values are:
+// IsConnected (bool) to test if connection to the target is successful
+// IsAuthenticated (bool) to test if authentication is successful
+func SMPPHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
+	session, err := GetSMPPConnection(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password)
+	if err != nil {
+		if !errors.Is(err, SMPPErrAuth) {
+			// connection error
+			return false, false
 		}
-		// shutdown all threads if --stop-on-success is used and password is found
-		if opts.StopOnSuccess && target.Success {
-			break
-		}
-
-		logger.Debugf("trying %s:%d with credential %s:%s", target.IP, target.Port, credential.Username, credential.Password)
-
-		session, err := GetSMPPConnection(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password)
-		if err != nil {
-			if opts.Delay > 0 {
-				time.Sleep(opts.Delay)
-			}
-			continue
-		}
-
-		_ = session.Close()
-		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, credential.Username, credential.Password)
-
-		if opts.Delay > 0 {
-			time.Sleep(opts.Delay)
-		}
+		// connected but not authenticated
+		return true, false
 	}
+	_ = session.Close()
+
+	// connected and authenticated
+	return true, true
 }
 
 // ============================================================================
@@ -184,7 +170,7 @@ func GetSMPPConnection(target net.IP, port int, secure bool, timeout time.Durati
 	)
 
 	if err != nil {
-		return nil, classifyError(err, secure)
+		return nil, classifySMPPError(err, secure)
 	}
 
 	return session, nil
@@ -244,8 +230,8 @@ func createNonTLSDialer(timeout time.Duration) gosmpp.Dialer {
 	}
 }
 
-// classifyError categorizes the error into TLS, Auth, or Connection error.
-func classifyError(err error, wasTLS bool) error {
+// classifySMPPError categorizes the error into TLS, Auth, or Connection error.
+func classifySMPPError(err error, wasTLS bool) error {
 	if err == nil {
 		return nil
 	}

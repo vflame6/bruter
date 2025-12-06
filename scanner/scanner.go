@@ -25,7 +25,10 @@ type Command struct {
 }
 
 // CommandHandler is an interface for one bruteforcing thread
-type CommandHandler func(wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target)
+// the return values are:
+// IsConnected (bool) to test if connection to the target is successful
+// IsAuthenticated (bool) to test if authentication is successful
+type CommandHandler func(opts *Options, target *Target, credential *Credential) (bool, bool)
 
 // CheckerHandler is an interface for service checker function
 // the return values are:
@@ -48,6 +51,7 @@ type Options struct {
 	Threads        int
 	Delay          time.Duration
 	StopOnSuccess  bool
+	Retries        int
 	OutputFileName string
 	OutputFile     *os.File
 	Usernames      []string
@@ -60,6 +64,7 @@ type Target struct {
 	Port       int
 	Encryption bool
 	Success    bool
+	Retries    int
 	Mutex      sync.Mutex
 }
 
@@ -68,7 +73,7 @@ type Credential struct {
 	Password string
 }
 
-func NewScanner(timeout int, output string, parallel, threads, delay int, stopOnSuccess bool, username, password string) (*Scanner, error) {
+func NewScanner(timeout int, output string, parallel, threads, delay int, stopOnSuccess bool, retries int, username, password string) (*Scanner, error) {
 	var outputFile *os.File
 	var passwords []string
 
@@ -104,6 +109,7 @@ func NewScanner(timeout int, output string, parallel, threads, delay int, stopOn
 		Threads:        threads,
 		Delay:          time.Duration(delay) * time.Millisecond,
 		StopOnSuccess:  stopOnSuccess,
+		Retries:        retries,
 		OutputFileName: output,
 		OutputFile:     outputFile,
 		Usernames:      usernames,
@@ -156,14 +162,14 @@ func (s *Scanner) Run(command, targets string) error {
 	for i := 0; i < s.Parallel; i++ {
 		parallelWg.Add(1)
 
-		go s.ThreadedHandler(&parallelWg, parallelTargets, c.Checker, c.Handler)
+		go s.ParallelHandler(&parallelWg, parallelTargets, c.Checker, c.Handler)
 	}
 	parallelWg.Wait()
 
 	return nil
 }
 
-func (s *Scanner) ThreadedHandler(wg *sync.WaitGroup, targets <-chan *Target, checker CheckerHandler, handler CommandHandler) {
+func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, targets <-chan *Target, checker CheckerHandler, handler CommandHandler) {
 	defer wg.Done()
 
 	for {
@@ -200,9 +206,48 @@ func (s *Scanner) ThreadedHandler(wg *sync.WaitGroup, targets <-chan *Target, ch
 		var threadWg sync.WaitGroup
 		for i := 0; i < s.Opts.Threads; i++ {
 			threadWg.Add(1)
-			go handler(&threadWg, credentials, s.Opts, target)
+			go ThreadHandler(handler, &threadWg, credentials, s.Opts, target)
 		}
 		threadWg.Wait()
+	}
+}
+
+func ThreadHandler(handler CommandHandler, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
+	defer wg.Done()
+
+	for {
+		credential, ok := <-credentials
+		if !ok {
+			break
+		}
+		// shutdown all threads if --stop-on-success is used and password is found
+		if opts.StopOnSuccess && target.Success {
+			break
+		}
+		// shutdown all threads if number of max retries exceeded
+		if opts.Retries > 0 && target.Retries >= opts.Retries {
+			break
+		}
+		logger.Debugf("trying %s:%d with credential %s:%s", target.IP, target.Port, credential.Username, credential.Password)
+
+		isConnected, isSuccess := handler(opts, target, credential)
+
+		if opts.Retries > 0 && !isConnected {
+			target.Mutex.Lock()
+			target.Retries++
+			if target.Retries == opts.Retries {
+				logger.Infof("exceeded number of max retries on %s:%d, could be banned by target", target.IP, target.Port)
+			}
+			target.Mutex.Unlock()
+		}
+
+		if isSuccess {
+			RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, credential.Username, credential.Password)
+		}
+
+		if opts.Delay > 0 {
+			time.Sleep(opts.Delay)
+		}
 	}
 }
 
@@ -251,7 +296,7 @@ func RegisterSuccess(outputFile *os.File, fileMutex *sync.Mutex, command string,
 
 	if outputFile != nil {
 		fileMutex.Lock()
-		_, _ = outputFile.WriteString(successString)
+		_, _ = outputFile.WriteString(successString + "\n")
 		fileMutex.Unlock()
 	}
 }
