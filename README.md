@@ -50,6 +50,8 @@ Flags:
   Will always use single thread if set
   --timeout=5             Connection timeout in seconds
   --[no-]stop-on-success  Stop bruteforcing host on first success
+  --max-retries=30        Number of connection errors to stop bruteforcing
+  host. Specify 0 to disable this behavior
   -u, --username=USERNAME     Username or file with usernames
   -p, --password=PASSWORD     Password or file with passwords
   --[no-]version          Show application version.
