@@ -24,6 +24,7 @@ Available modules:
 - `ftp`
 - `mongo`
 - `smpp`
+- `vault`
 
 ## Usage
 
@@ -34,29 +35,31 @@ bruter -h
 Here is a help menu for the tool:
 
 ```yaml
-usage: bruter --username=USERNAME --password=PASSWORD [<flags>] <command> [<args> ...]
+usage: bruter --target=TARGET --username=USERNAME --password=PASSWORD [<flags>] <command> [<args> ...]
 
   bruter is a network services bruteforce tool.
 
 Flags:
-  -h, --[no-]help             Show context-sensitive help (also try --help-long
+  -h, --[no-]help              Show context-sensitive help (also try --help-long
   and --help-man).
-  -q, --[no-]quiet            Enable quiet mode, print results only
-  -D, --[no-]debug            Enable debug mode, print all logs
-  -o, --output=""             Filename to write output in raw format
-  -T, --parallelism=32        Number of targets in parallel
-  -t, --threads=10            Number of threads per target
-  -d, --delay=0               Delay in millisecond between each attempt.
+  -q, --[no-]quiet             Enable quiet mode, print results only
+  -D, --[no-]debug             Enable debug mode, print all logs
+  -o, --output=""              Filename to write output in raw format
+  -C, --concurrent-hosts=32    Number of targets in parallel
+  -c, --concurrent-threads=10  Number of parallel threads per target
+  -d, --delay=0                Delay in millisecond between each attempt.
   Will always use single thread if set
-  --timeout=5             Connection timeout in seconds
-  --[no-]stop-on-success  Stop bruteforcing host on first success
-  --max-retries=30        Number of connection errors to stop bruteforcing
+  --timeout=5              Connection timeout in seconds
+  --[no-]stop-on-success   Stop bruteforcing host on first success
+  --max-retries=30         Number of connection errors to stop bruteforcing
   host. Specify 0 to disable this behavior
-  -u, --username=USERNAME     Username or file with usernames
-  -p, --password=PASSWORD     Password or file with passwords
-  --[no-]version          Show application version.
+  -t, --target=TARGET          Target host or file with targets. Format host or
+  host:port, one per line
+  -u, --username=USERNAME      Username or file with usernames
+  -p, --password=PASSWORD      Password or file with passwords
+  --[no-]version           Show application version.
 
-Commands: clickhouse ftp mongo smpp
+Commands: clickhouse ftp mongo smpp vault
 ```
 
 Targets are specified in format `IP` or `IP:PORT`. If `PORT` is not specified, the tool uses the default one (for example: `9000` for ClickHouse). 

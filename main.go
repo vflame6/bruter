@@ -27,12 +27,15 @@ var (
 	outputFlag = app.Flag("output", "Filename to write output in raw format").Short('o').Default("").String()
 
 	// optimization flags
-	parallelFlag      = app.Flag("parallelism", "Number of targets in parallel").Short('T').Default("32").Int()
-	threadsFlag       = app.Flag("threads", "Number of threads per target").Short('t').Default("10").Int()
+	parallelFlag      = app.Flag("concurrent-hosts", "Number of targets in parallel").Short('C').Default("32").Int()
+	threadsFlag       = app.Flag("concurrent-threads", "Number of parallel threads per target").Short('c').Default("10").Int()
 	delayFlag         = app.Flag("delay", "Delay in millisecond between each attempt. Will always use single thread if set").Short('d').Default("0").Int()
 	timeoutFlag       = app.Flag("timeout", "Connection timeout in seconds").Default("5").Int()
 	stopOnSuccessFlag = app.Flag("stop-on-success", "Stop bruteforcing host on first success").Default("false").Bool()
 	retryFlag         = app.Flag("max-retries", "Number of connection errors to stop bruteforcing host. Specify 0 to disable this behavior").Default("30").Int()
+
+	// targets
+	targetFlag = app.Flag("target", "Target host or file with targets. Format host or host:port, one per line").Short('t').Required().String()
 
 	// wordlist flags
 	usernameFlag = app.Flag("username", "Username or file with usernames").Short('u').Required().String()
@@ -42,17 +45,15 @@ var (
 	// sort alphabetically
 
 	// clickhouse
-	clickhouseCommand   = app.Command("clickhouse", "ClickHouse module")
-	clickhouseTargetArg = clickhouseCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
+	clickhouseCommand = app.Command("clickhouse", "ClickHouse module")
 	// ftp
-	ftpCommand   = app.Command("ftp", "FTP module")
-	ftpTargetArg = ftpCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
+	ftpCommand = app.Command("ftp", "FTP module")
 	// mongodb
-	mongoCommand   = app.Command("mongo", "MongoDB module")
-	mongoTargetArg = mongoCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
+	mongoCommand = app.Command("mongo", "MongoDB module")
 	// smpp
-	smppCommand   = app.Command("smpp", "SMPP module")
-	smppTargetArg = smppCommand.Arg("target", "Target host or file with targets. Format host or host:port, one per line").Required().String()
+	smppCommand = app.Command("smpp", "SMPP module")
+	// vault
+	vaultCommand = app.Command("vault", "HashiCorp Vault Userpass module")
 )
 
 // CustomUsageTemplate is a template for kingpin's help menu
@@ -181,18 +182,7 @@ func main() {
 	}
 
 	// pass the selected command
-	if command == clickhouseCommand.FullCommand() {
-		err = s.Run(command, *clickhouseTargetArg)
-	}
-	if command == ftpCommand.FullCommand() {
-		err = s.Run(command, *ftpTargetArg)
-	}
-	if command == mongoCommand.FullCommand() {
-		err = s.Run(command, *mongoTargetArg)
-	}
-	if command == smppCommand.FullCommand() {
-		err = s.Run(command, *smppTargetArg)
-	}
+	err = s.Run(command, *targetFlag)
 	if err != nil {
 		logger.Fatal(err)
 	}

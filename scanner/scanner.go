@@ -11,11 +11,13 @@ import (
 	"time"
 )
 
+// Commands stores all available services for bruteforcing
 var Commands = map[string]Command{
 	"clickhouse": {9000, ClickHouseHandler, ClickHouseChecker},
 	"ftp":        {21, FTPHandler, FTPChecker},
 	"mongo":      {27017, MongoHandler, MongoChecker},
 	"smpp":       {2775, SMPPHandler, SMPPChecker},
+	"vault":      {8200, VaultHandler, VaultChecker},
 }
 
 type Command struct {
