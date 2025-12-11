@@ -6,9 +6,13 @@ import (
 	"time"
 )
 
-func NewHTTPClient(timeout time.Duration) *http.Client {
+func NewHTTPClient(dialer *ProxyAwareDialer, timeout time.Duration) *http.Client {
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		DialContext: dialer.DialContext,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+			MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
+		},
 	}
 
 	return &http.Client{

@@ -53,7 +53,7 @@ func SMPPChecker(target *Target, opts *Options) (bool, bool, error) {
 	defaultPassword := "password"
 
 	// Step 1: Try TLS connection
-	session, err := GetSMPPConnection(target.IP, target.Port, true, opts.Timeout, defaultUsername, defaultPassword)
+	session, err := GetSMPPConnection(target.IP, target.Port, true, opts.Timeout, opts.ProxyDialer, defaultUsername, defaultPassword)
 
 	if err == nil {
 		// TLS connection successful, credentials valid
@@ -70,7 +70,7 @@ func SMPPChecker(target *Target, opts *Options) (bool, bool, error) {
 
 	// Try non-TLS as fallback
 	logger.Debugf("failed to connect to %s:%d with TLS, trying plaintext", target.IP, target.Port)
-	session, err = GetSMPPConnection(target.IP, target.Port, false, opts.Timeout, defaultUsername, defaultPassword)
+	session, err = GetSMPPConnection(target.IP, target.Port, false, opts.Timeout, opts.ProxyDialer, defaultUsername, defaultPassword)
 
 	if err == nil {
 		// Non-TLS connection successful, credentials valid
@@ -94,7 +94,7 @@ func SMPPChecker(target *Target, opts *Options) (bool, bool, error) {
 // IsConnected (bool) to test if connection to the target is successful
 // IsAuthenticated (bool) to test if authentication is successful
 func SMPPHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
-	session, err := GetSMPPConnection(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password)
+	session, err := GetSMPPConnection(target.IP, target.Port, target.Encryption, opts.Timeout, opts.ProxyDialer, credential.Username, credential.Password)
 	if err != nil {
 		if !errors.Is(err, SMPPErrAuth) {
 			// connection error
@@ -126,7 +126,7 @@ func SMPPHandler(opts *Options, target *Target, credential *Credential) (bool, b
 // Returns:
 //   - *gosmpp.Session: Established session (caller must close it)
 //   - error: Connection or authentication error
-func GetSMPPConnection(target net.IP, port int, secure bool, timeout time.Duration, username, password string) (*gosmpp.Session, error) {
+func GetSMPPConnection(target net.IP, port int, secure bool, timeout time.Duration, d *ProxyAwareDialer, username, password string) (*gosmpp.Session, error) {
 	addr := fmt.Sprintf("%s:%d", target.String(), port)
 
 	// Create authentication config
@@ -140,9 +140,9 @@ func GetSMPPConnection(target net.IP, port int, secure bool, timeout time.Durati
 	// Create dialer based on secure flag
 	var dialer gosmpp.Dialer
 	if secure {
-		dialer = createTLSDialer(timeout)
+		dialer = createTLSSMPPDialer(d)
 	} else {
-		dialer = createNonTLSDialer(timeout)
+		dialer = createNonTLSSMPPDialer(d)
 	}
 
 	// Session settings - minimal for connection check
@@ -174,44 +174,37 @@ func GetSMPPConnection(target net.IP, port int, secure bool, timeout time.Durati
 	return session, nil
 }
 
-// createTLSDialer creates a TLS dialer with InsecureSkipVerify enabled.
-func createTLSDialer(timeout time.Duration) gosmpp.Dialer {
+// createTLSSMPPDialer creates a TLS dialer with InsecureSkipVerify enabled.
+func createTLSSMPPDialer(d *ProxyAwareDialer) gosmpp.Dialer {
 	return func(addr string) (net.Conn, error) {
-		// Extract host for TLS config
 		host, _, err := net.SplitHostPort(addr)
 		if err != nil {
 			host = addr
 		}
 
-		// Establish TCP connection with timeout
-		conn, err := net.DialTimeout("tcp", addr, timeout)
+		conn, err := d.Dial("tcp", addr)
 		if err != nil {
 			return nil, err
 		}
 
-		// Create TLS config with InsecureSkipVerify
 		tlsConfig := &tls.Config{
 			InsecureSkipVerify: true,
 			ServerName:         host,
-			MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
+			MinVersion:         tls.VersionTLS10,
 		}
 
-		// Upgrade to TLS
 		tlsConn := tls.Client(conn, tlsConfig)
 
-		// Set handshake deadline
-		if err := tlsConn.SetDeadline(time.Now().Add(timeout)); err != nil {
+		if err := tlsConn.SetDeadline(time.Now().Add(d.Timeout())); err != nil {
 			_ = conn.Close()
 			return nil, err
 		}
 
-		// Perform TLS handshake
 		if err := tlsConn.Handshake(); err != nil {
 			_ = conn.Close()
 			return nil, fmt.Errorf("%w: %v", SMPPErrTLS, err)
 		}
 
-		// Reset deadline
 		if err := tlsConn.SetDeadline(time.Time{}); err != nil {
 			_ = tlsConn.Close()
 			return nil, err
@@ -221,10 +214,10 @@ func createTLSDialer(timeout time.Duration) gosmpp.Dialer {
 	}
 }
 
-// createNonTLSDialer creates a plain TCP dialer with timeout.
-func createNonTLSDialer(timeout time.Duration) gosmpp.Dialer {
+// createNonTLSSMPPDialer creates a plain TCP dialer with timeout.
+func createNonTLSSMPPDialer(d *ProxyAwareDialer) gosmpp.Dialer {
 	return func(addr string) (net.Conn, error) {
-		return net.DialTimeout("tcp", addr, timeout)
+		return d.Dial("tcp", addr)
 	}
 }
 

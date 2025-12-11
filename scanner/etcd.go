@@ -31,7 +31,7 @@ func EtcdChecker(target *Target, opts *Options) (bool, bool, error) {
 	secure := false
 
 	// try with encryption first
-	probe, err := ProbeEtcd(target.IP, target.Port, true, opts.Timeout, defaultUsername, defaultPassword)
+	probe, err := ProbeEtcd(target.IP, target.Port, true, opts.Timeout, opts.ProxyDialer, defaultUsername, defaultPassword)
 	if err == nil {
 		secure = true
 		if probe {
@@ -41,7 +41,7 @@ func EtcdChecker(target *Target, opts *Options) (bool, bool, error) {
 	} else {
 		logger.Debugf("(%s:%d) failed to connect to etcd with encryption, trying plaintext", target.IP, target.Port)
 		// connect via plaintext FTP
-		probe, err = ProbeEtcd(target.IP, target.Port, false, opts.Timeout, defaultUsername, defaultPassword)
+		probe, err = ProbeEtcd(target.IP, target.Port, false, opts.Timeout, opts.ProxyDialer, defaultUsername, defaultPassword)
 		if err == nil {
 			if probe {
 				RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
@@ -58,7 +58,7 @@ func EtcdChecker(target *Target, opts *Options) (bool, bool, error) {
 
 // EtcdHandler is an implementation of CommandHandler for etcd service
 func EtcdHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
-	probe, err := ProbeEtcd(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password)
+	probe, err := ProbeEtcd(target.IP, target.Port, target.Encryption, opts.Timeout, opts.ProxyDialer, credential.Username, credential.Password)
 	if err != nil {
 		// not connected
 		return false, false
@@ -68,24 +68,33 @@ func EtcdHandler(opts *Options, target *Target, credential *Credential) (bool, b
 	return true, probe
 }
 
-func ProbeEtcd(ip net.IP, port int, encryption bool, timeout time.Duration, username, password string) (bool, error) {
+func ProbeEtcd(ip net.IP, port int, encryption bool, timeout time.Duration, d *ProxyAwareDialer, username, password string) (bool, error) {
 	var client *etcd.Client
 	var err error
+
+	dialOptions := []grpc.DialOption{
+		grpc.WithBlock(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return d.DialContext(ctx, "tcp", addr)
+		}),
+	}
 
 	if encryption {
 		client, err = etcd.New(etcd.Config{
 			Logger:      etcdLogger,
-			DialOptions: []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials())},
+			DialOptions: dialOptions,
 			Endpoints:   []string{net.JoinHostPort(ip.String(), strconv.Itoa(port))},
 			DialTimeout: timeout,
 			TLS: &tls.Config{
 				InsecureSkipVerify: true,
+				MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
 			},
 		})
 	} else {
 		client, err = etcd.New(etcd.Config{
 			Logger:      etcdLogger,
-			DialOptions: []grpc.DialOption{grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials())},
+			DialOptions: dialOptions,
 			Endpoints:   []string{net.JoinHostPort(ip.String(), strconv.Itoa(port))},
 			DialTimeout: timeout,
 		})

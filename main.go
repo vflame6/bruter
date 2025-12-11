@@ -34,6 +34,10 @@ var (
 	stopOnSuccessFlag = app.Flag("stop-on-success", "Stop bruteforce the host on first success").Default("false").Bool()
 	retryFlag         = app.Flag("max-retries", "Number of connection errors to stop bruteforce the host. Specify 0 to disable this behavior").Default("30").Int()
 
+	// connection flags
+	proxyFlag     = app.Flag("proxy", "SOCKS-proxy address to use for connection in format IP:PORT").Default("").String()
+	proxyAuthFlag = app.Flag("proxy-auth", "Proxy username and password in format username:password").Default("").String()
+
 	// targets
 	targetFlag = app.Flag("target", "Target host or file with targets. Format host or host:port, one per line").Short('t').Required().String()
 
@@ -178,6 +182,8 @@ func main() {
 		*delayFlag,
 		*stopOnSuccessFlag,
 		*retryFlag,
+		*proxyFlag,
+		*proxyAuthFlag,
 		*usernameFlag,
 		*passwordFlag,
 	)

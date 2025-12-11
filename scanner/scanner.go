@@ -57,6 +57,7 @@ type Options struct {
 	Delay          time.Duration
 	StopOnSuccess  bool
 	Retries        int
+	ProxyDialer    *ProxyAwareDialer // --proxy
 	OutputFileName string
 	OutputFile     *os.File
 	Usernames      string
@@ -78,8 +79,9 @@ type Credential struct {
 	Password string
 }
 
-func NewScanner(timeout int, output string, parallel, threads, delay int, stopOnSuccess bool, retries int, username, password string) (*Scanner, error) {
+func NewScanner(timeout int, output string, parallel, threads, delay int, stopOnSuccess bool, retries int, proxyStr, proxyAuthStr, username, password string) (*Scanner, error) {
 	var outputFile *os.File
+	var err error
 
 	if output != "" {
 		var err error
@@ -87,6 +89,12 @@ func NewScanner(timeout int, output string, parallel, threads, delay int, stopOn
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// custom dialer to handle proxy settings
+	dialer, err := NewProxyAwareDialer(proxyStr, proxyAuthStr, time.Duration(timeout)*time.Second)
+	if err != nil {
+		return nil, err
 	}
 
 	parallelTargets := make(chan *Target, parallel*BufferMultiplier)
@@ -97,6 +105,7 @@ func NewScanner(timeout int, output string, parallel, threads, delay int, stopOn
 		Delay:          time.Duration(delay) * time.Millisecond,
 		StopOnSuccess:  stopOnSuccess,
 		Retries:        retries,
+		ProxyDialer:    dialer,
 		OutputFileName: output,
 		OutputFile:     outputFile,
 		Usernames:      username,

@@ -7,7 +7,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/vflame6/bruter/logger"
 	"net"
-	"time"
 )
 
 // AMQPChecker is an implementation of CheckerHandler for AMQP service
@@ -19,7 +18,7 @@ func AMQPChecker(target *Target, opts *Options) (bool, bool, error) {
 	secure := false
 
 	// try with encryption first
-	probe, err := ProbeAMQP(target.IP, target.Port, true, opts.Timeout, defaultUsername, defaultPassword)
+	probe, err := ProbeAMQP(target.IP, target.Port, true, opts.ProxyDialer, defaultUsername, defaultPassword)
 	if err == nil {
 		secure = true
 		if probe {
@@ -27,9 +26,9 @@ func AMQPChecker(target *Target, opts *Options) (bool, bool, error) {
 			success = true
 		}
 	} else {
-		logger.Debugf("(%s:%d) failed to connect to AMQP with encryption, trying plaintext", target.IP, target.Port)
+		logger.Debugf("failed to connect to AMQP with encryption on %s:%d, trying plaintext", target.IP, target.Port)
 		// connect via plaintext FTP
-		probe, err = ProbeAMQP(target.IP, target.Port, false, opts.Timeout, defaultUsername, defaultPassword)
+		probe, err = ProbeAMQP(target.IP, target.Port, false, opts.ProxyDialer, defaultUsername, defaultPassword)
 		if err == nil {
 			if probe {
 				RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
@@ -46,7 +45,7 @@ func AMQPChecker(target *Target, opts *Options) (bool, bool, error) {
 
 // AMQPHandler is an implementation of CommandHandler for AMQP service
 func AMQPHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
-	probe, err := ProbeAMQP(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password)
+	probe, err := ProbeAMQP(target.IP, target.Port, target.Encryption, opts.ProxyDialer, credential.Username, credential.Password)
 	if err != nil {
 		// not connected
 		return false, false
@@ -56,7 +55,7 @@ func AMQPHandler(opts *Options, target *Target, credential *Credential) (bool, b
 	return true, probe
 }
 
-func ProbeAMQP(ip net.IP, port int, encryption bool, timeout time.Duration, username, password string) (bool, error) {
+func ProbeAMQP(ip net.IP, port int, encryption bool, dialer *ProxyAwareDialer, username, password string) (bool, error) {
 	var conn *amqp.Connection
 	var endpoint string
 	var err error
@@ -65,20 +64,21 @@ func ProbeAMQP(ip net.IP, port int, encryption bool, timeout time.Duration, user
 		endpoint = fmt.Sprintf("amqps://%s:%s@%s:%d/", username, password, ip.String(), port)
 		conn, err = amqp.DialConfig(endpoint, amqp.Config{
 			Dial: func(network, addr string) (net.Conn, error) {
-				tlsConfig := &tls.Config{InsecureSkipVerify: true}
-				conn, err := net.DialTimeout(network, addr, timeout)
+				tlsConfig := &tls.Config{
+					InsecureSkipVerify: true,
+					MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
+				}
+				c, err := dialer.Dial(network, addr)
 				if err != nil {
 					return nil, err
 				}
-				return tls.Client(conn, tlsConfig), nil
+				return tls.Client(c, tlsConfig), nil
 			},
 		})
 	} else {
 		endpoint = fmt.Sprintf("amqp://%s:%s@%s:%d/", username, password, ip.String(), port)
 		conn, err = amqp.DialConfig(endpoint, amqp.Config{
-			Dial: func(network, addr string) (net.Conn, error) {
-				return net.DialTimeout(network, addr, timeout)
-			},
+			Dial: dialer.Dial,
 		})
 	}
 

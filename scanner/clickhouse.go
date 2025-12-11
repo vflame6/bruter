@@ -15,16 +15,12 @@ import (
 )
 
 // ClickHouseChecker is an implementation of CheckerHandler for ClickHouse service
-// the return values are:
-// DEFAULT (bool) for test if the target has default credentials
-// ENCRYPTION (bool) for test if the target is using encryption
-// ERROR (error) for connection errors
 func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
 	defaultUsername := "default"
 	defaultPassword := ""
 
 	// Try TLS first
-	conn, errType, err := TestClickHouseConnection(target.IP, target.Port, true, defaultUsername, defaultPassword, opts.Timeout)
+	conn, errType, err := TestClickHouseConnection(target.IP, target.Port, true, defaultUsername, defaultPassword, opts.Timeout, opts.ProxyDialer)
 	if err == nil {
 		defer conn.Close()
 
@@ -40,7 +36,7 @@ func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
 	// If it's a TLS error, try plaintext
 	if errType == "tls_error" {
 		logger.Debugf("failed to connect to %s:%d with TLS, trying plaintext", target.IP, target.Port)
-		conn, errType, err = TestClickHouseConnection(target.IP, target.Port, false, defaultUsername, defaultPassword, opts.Timeout)
+		conn, errType, err = TestClickHouseConnection(target.IP, target.Port, false, defaultUsername, defaultPassword, opts.Timeout, opts.ProxyDialer)
 		if err == nil {
 			defer conn.Close()
 			RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
@@ -56,12 +52,9 @@ func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // ClickHouseHandler is an implementation of CommandHandler for ClickHouse service
-// the return values are:
-// IsConnected (bool) to test if connection to the target is successful
-// IsAuthenticated (bool) to test if authentication is successful
 func ClickHouseHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
 	// get connection object
-	conn, err := GetClickHouseConnection(target.IP, target.Port, target.Encryption, credential.Username, credential.Password, opts.Timeout)
+	conn, err := GetClickHouseConnection(target.IP, target.Port, target.Encryption, credential.Username, credential.Password, opts.Timeout, opts.ProxyDialer)
 	if err != nil {
 		// something wrong with library I guess, we do not perform connection here
 		return false, false
@@ -85,7 +78,7 @@ func ClickHouseHandler(opts *Options, target *Target, credential *Credential) (b
 	return true, true
 }
 
-func GetClickHouseConnection(address net.IP, port int, secure bool, username, password string, timeout time.Duration) (driver.Conn, error) {
+func GetClickHouseConnection(address net.IP, port int, secure bool, username, password string, timeout time.Duration, d *ProxyAwareDialer) (driver.Conn, error) {
 	addr := net.JoinHostPort(address.String(), strconv.Itoa(port))
 
 	opts := &clickhouse.Options{
@@ -96,11 +89,15 @@ func GetClickHouseConnection(address net.IP, port int, secure bool, username, pa
 			Password: password,
 		},
 		DialTimeout: timeout,
+		DialContext: func(ctx context.Context, addr string) (net.Conn, error) {
+			return d.DialContext(ctx, "tcp", addr)
+		},
 	}
 
 	if secure {
 		opts.TLS = &tls.Config{
 			InsecureSkipVerify: true,
+			MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
 		}
 	}
 
@@ -112,7 +109,7 @@ func GetClickHouseConnection(address net.IP, port int, secure bool, username, pa
 	return conn, nil
 }
 
-func TestClickHouseConnection(address net.IP, port int, secure bool, username, password string, timeout time.Duration) (driver.Conn, string, error) {
+func TestClickHouseConnection(address net.IP, port int, secure bool, username, password string, timeout time.Duration, d *ProxyAwareDialer) (driver.Conn, string, error) {
 	addr := net.JoinHostPort(address.String(), strconv.Itoa(port))
 
 	opts := &clickhouse.Options{
@@ -123,11 +120,15 @@ func TestClickHouseConnection(address net.IP, port int, secure bool, username, p
 			Password: password,
 		},
 		DialTimeout: timeout,
+		DialContext: func(ctx context.Context, addr string) (net.Conn, error) {
+			return d.DialContext(ctx, "tcp", addr)
+		},
 	}
 
 	if secure {
 		opts.TLS = &tls.Config{
 			InsecureSkipVerify: true,
+			MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
 		}
 	}
 

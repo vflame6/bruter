@@ -20,7 +20,7 @@ func VaultChecker(target *Target, opts *Options) (bool, bool, error) {
 	secure := false
 
 	// try with encryption first
-	probe, err := ProbeVault(target.IP, target.Port, true, opts.Timeout, defaultUsername, defaultPassword)
+	probe, err := ProbeVault(target.IP, target.Port, true, opts.Timeout, defaultUsername, defaultPassword, opts.ProxyDialer)
 	if err == nil {
 		secure = true
 		if probe {
@@ -30,7 +30,7 @@ func VaultChecker(target *Target, opts *Options) (bool, bool, error) {
 	} else {
 		logger.Debugf("(%s:%d) failed to connect to Vault with encryption, trying plaintext", target.IP, target.Port)
 		// connect via plaintext FTP
-		probe, err = ProbeVault(target.IP, target.Port, false, opts.Timeout, defaultUsername, defaultPassword)
+		probe, err = ProbeVault(target.IP, target.Port, false, opts.Timeout, defaultUsername, defaultPassword, opts.ProxyDialer)
 		if err == nil {
 			if probe {
 				RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
@@ -47,7 +47,7 @@ func VaultChecker(target *Target, opts *Options) (bool, bool, error) {
 
 // VaultHandler is an implementation of CommandHandler for HashiCorp Vault service
 func VaultHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
-	probe, err := ProbeVault(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password)
+	probe, err := ProbeVault(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password, opts.ProxyDialer)
 	if err != nil {
 		// not connected
 		return false, false
@@ -57,7 +57,7 @@ func VaultHandler(opts *Options, target *Target, credential *Credential) (bool, 
 	return true, probe
 }
 
-func ProbeVault(ip net.IP, port int, encryption bool, timeout time.Duration, username, password string) (bool, error) {
+func ProbeVault(ip net.IP, port int, encryption bool, timeout time.Duration, username, password string, dialer *ProxyAwareDialer) (bool, error) {
 	reqJson, err := json.Marshal(map[string]string{
 		"password": password,
 	})
@@ -73,7 +73,7 @@ func ProbeVault(ip net.IP, port int, encryption bool, timeout time.Duration, use
 		url = fmt.Sprintf("http://%s:%d/v1/auth/userpass/login/%s", ip, port, username)
 	}
 
-	client := NewHTTPClient(timeout)
+	client := NewHTTPClient(dialer, timeout)
 
 	resp, err := client.Post(url, "application/json", reqData)
 	if err != nil {

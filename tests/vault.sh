@@ -2,7 +2,7 @@
 
 export PASSWORD="password"
 
-CONTAINER_ID=$(docker run -d --rm -p 8200:8200 --name vault -e VAULT_DEV_ROOT_TOKEN_ID=root hashicorp/vault:latest)
+docker run -d --rm -p 127.0.0.1:8200:8200 --name vault -e VAULT_DEV_ROOT_TOKEN_ID=root hashicorp/vault:latest
 
 sleep 10
 
