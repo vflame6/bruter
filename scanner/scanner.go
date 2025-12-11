@@ -20,6 +20,7 @@ var Commands = map[string]Command{
 	"ftp":        {21, FTPHandler, FTPChecker},
 	"mongo":      {27017, MongoHandler, MongoChecker},
 	"smpp":       {2775, SMPPHandler, SMPPChecker},
+	"ssh":        {22, SSHHandler, SSHChecker},
 	"vault":      {8200, VaultHandler, VaultChecker},
 }
 
@@ -195,6 +196,11 @@ func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, checker CheckerHandler, ha
 		// skip target if default credentials are found and --stop-on-success is enabled
 		if defaultCreds && s.Opts.StopOnSuccess {
 			continue
+		}
+
+		// wait for delay before start
+		if s.Opts.Delay > 0 {
+			time.Sleep(s.Opts.Delay)
 		}
 
 		credentials := make(chan *Credential, s.Opts.Threads*BufferMultiplier)

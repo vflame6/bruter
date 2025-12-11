@@ -26,6 +26,7 @@ Available modules:
 - `ftp`
 - `mongo`
 - `smpp`
+- `ssh`
 - `vault`
 
 ## Usage
@@ -65,7 +66,7 @@ Flags:
   -p, --password=PASSWORD      Password or file with passwords
   --[no-]version           Show application version.
 
-Commands: amqp clickhouse etcd ftp mongo smpp vault
+Commands: amqp clickhouse etcd ftp mongo smpp ssh vault
 ```
 
 Targets are specified in format `IP` or `IP:PORT`. If `PORT` is not specified, the tool uses the default one (for example: `9000` for ClickHouse). 
