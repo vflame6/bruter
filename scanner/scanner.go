@@ -1,9 +1,7 @@
 package scanner
 
 import (
-	"bufio"
 	"errors"
-	"fmt"
 	"github.com/vflame6/bruter/logger"
 	"net"
 	"os"
@@ -11,7 +9,10 @@ import (
 	"time"
 )
 
-// Commands stores all available services for bruteforcing
+// BufferMultiplier defines the multiply value for Golang channel buffers
+const BufferMultiplier = 4
+
+// Commands stores all available services for bruteforce
 var Commands = map[string]Command{
 	"amqp":       {5672, AMQPHandler, AMQPChecker},
 	"clickhouse": {9000, ClickHouseHandler, ClickHouseChecker},
@@ -28,13 +29,13 @@ type Command struct {
 	Checker     CheckerHandler
 }
 
-// CommandHandler is an interface for one bruteforcing thread
+// CommandHandler is a type function for one bruteforce thread
 // the return values are:
 // IsConnected (bool) to test if connection to the target is successful
 // IsAuthenticated (bool) to test if authentication is successful
 type CommandHandler func(opts *Options, target *Target, credential *Credential) (bool, bool)
 
-// CheckerHandler is an interface for service checker function
+// CheckerHandler is a type function for service checker function
 // the return values are:
 // DEFAULT (bool) for test if the target has default credentials
 // ENCRYPTION (bool) for test if the target is using encryption
@@ -44,7 +45,7 @@ type CheckerHandler func(target *Target, opts *Options) (bool, bool, error)
 
 type Scanner struct {
 	Opts     *Options
-	Targets  []*Target
+	Targets  chan *Target
 	Port     int
 	Parallel int
 }
@@ -58,7 +59,7 @@ type Options struct {
 	Retries        int
 	OutputFileName string
 	OutputFile     *os.File
-	Usernames      []string
+	Usernames      string
 	Passwords      string
 	FileMutex      sync.Mutex
 }
@@ -88,10 +89,7 @@ func NewScanner(timeout int, output string, parallel, threads, delay int, stopOn
 		}
 	}
 
-	usernames, err := ParseUsernames(username)
-	if err != nil {
-		return nil, err
-	}
+	parallelTargets := make(chan *Target, parallel*BufferMultiplier)
 
 	options := Options{
 		Timeout:        time.Duration(timeout) * time.Second,
@@ -101,11 +99,12 @@ func NewScanner(timeout int, output string, parallel, threads, delay int, stopOn
 		Retries:        retries,
 		OutputFileName: output,
 		OutputFile:     outputFile,
-		Usernames:      usernames,
+		Usernames:      username,
 		Passwords:      password,
 	}
 
 	s := Scanner{
+		Targets:  parallelTargets,
 		Opts:     &options,
 		Parallel: parallel,
 	}
@@ -119,6 +118,9 @@ func (s *Scanner) Stop() {
 
 // Run method is used to handle parallel execution
 func (s *Scanner) Run(command, targets string) error {
+	var count int
+	var err error
+
 	// check if command is valid
 	c, ok := Commands[command]
 	if !ok {
@@ -132,43 +134,46 @@ func (s *Scanner) Run(command, targets string) error {
 		s.Opts.Threads = 1
 	}
 
-	// import targets
-	err := s.ImportTargets(c.DefaultPort, targets)
-	if err != nil {
-		return err
+	// if number of targets is less than number of parallels, decrease parallels
+	if IsFileExists(targets) {
+		count, err = CountLinesInFile(targets)
+		if err != nil {
+			return err
+		}
+	} else {
+		count = 1
+	}
+	if count < s.Parallel {
+		logger.Debugf("number of targets less than number of parallel targets, decreasing parallelism")
+		s.Parallel = count
 	}
 
+	// send targets to targets channel
+	go SendTargets(s.Targets, c.DefaultPort, targets)
+
+	// run parallel threads
 	var parallelWg sync.WaitGroup
-	parallelTargets := make(chan *Target, 256)
-
-	go func() {
-		for _, target := range s.Targets {
-			parallelTargets <- target
-		}
-		close(parallelTargets)
-	}()
-
 	for i := 0; i < s.Parallel; i++ {
 		parallelWg.Add(1)
 
-		go s.ParallelHandler(&parallelWg, parallelTargets, c.Checker, c.Handler)
+		go s.ParallelHandler(&parallelWg, c.Checker, c.Handler)
 	}
 	parallelWg.Wait()
 
 	return nil
 }
 
-func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, targets <-chan *Target, checker CheckerHandler, handler CommandHandler) {
+func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, checker CheckerHandler, handler CommandHandler) {
 	defer wg.Done()
 
 	for {
-		target, ok := <-targets
+		target, ok := <-s.Targets
 		if !ok {
 			break
 		}
 
 		// check with checker
-		logger.Debugf("(%s:%d) trying default credentials", target.IP, target.Port)
+		logger.Debugf("trying default credentials on %s:%d", target.IP, target.Port)
 		defaultCreds, encryption, err := checker(target, s.Opts)
 		if err != nil {
 			logger.Debug(err)
@@ -183,39 +188,9 @@ func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, targets <-chan *Target, ch
 			continue
 		}
 
-		credentials := make(chan *Credential, 256)
-		go func() {
-			// if passwords is a file, iterate over it
-			if CheckIfFileExists(s.Opts.Passwords) {
-				file, err := os.Open(s.Opts.Passwords)
-				if err != nil {
-					logger.Infof("failed to open file %s: %v", s.Opts.Passwords, err)
-					return
-				}
-				defer file.Close()
+		credentials := make(chan *Credential, s.Opts.Threads*BufferMultiplier)
 
-				scanner := bufio.NewScanner(file)
-				for scanner.Scan() {
-					line := scanner.Text()
-					if line == "" {
-						continue
-					}
-					for _, username := range s.Opts.Usernames {
-						credentials <- &Credential{Username: username, Password: line}
-					}
-				}
-				if err := scanner.Err(); err != nil {
-					logger.Infof("error reading file %s: %v", s.Opts.Passwords, err)
-				}
-			} else {
-				// if passwords is not a file, use it as a password
-				for _, username := range s.Opts.Usernames {
-					credentials <- &Credential{Username: username, Password: s.Opts.Passwords}
-				}
-			}
-
-			close(credentials)
-		}()
+		go SendCredentials(credentials, s.Opts.Usernames, s.Opts.Passwords)
 
 		var threadWg sync.WaitGroup
 		for i := 0; i < s.Opts.Threads; i++ {
@@ -223,94 +198,5 @@ func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, targets <-chan *Target, ch
 			go ThreadHandler(handler, &threadWg, credentials, s.Opts, target)
 		}
 		threadWg.Wait()
-	}
-}
-
-func ThreadHandler(handler CommandHandler, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
-	defer wg.Done()
-
-	for {
-		credential, ok := <-credentials
-		if !ok {
-			break
-		}
-		// shutdown all threads if --stop-on-success is used and password is found
-		if opts.StopOnSuccess && target.Success {
-			break
-		}
-		// shutdown all threads if number of max retries exceeded
-		if opts.Retries > 0 && target.Retries >= opts.Retries {
-			break
-		}
-		logger.Debugf("trying %s:%d with credential %s:%s", target.IP, target.Port, credential.Username, credential.Password)
-
-		isConnected, isSuccess := handler(opts, target, credential)
-
-		if opts.Retries > 0 && !isConnected {
-			target.Mutex.Lock()
-			target.Retries++
-			if target.Retries == opts.Retries {
-				logger.Infof("exceeded number of max retries on %s:%d, could be banned by target", target.IP, target.Port)
-			}
-			target.Mutex.Unlock()
-		}
-
-		if isSuccess {
-			RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, credential.Username, credential.Password)
-		}
-
-		if opts.Delay > 0 {
-			time.Sleep(opts.Delay)
-		}
-	}
-}
-
-func (s *Scanner) ImportTargets(defaultPort int, filename string) error {
-	var targets []*Target
-
-	if IsFileExists(filename) {
-		file, err := os.Open(filename)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := scanner.Text()
-			target, err := ParseTarget(line, defaultPort)
-			if err != nil {
-				logger.Debugf("can't parse line %s as host or host:port, ignoring", line)
-				continue
-			}
-			targets = append(targets, target)
-		}
-	} else {
-		target, err := ParseTarget(filename, defaultPort)
-		if err != nil {
-			return err
-		}
-		targets = append(targets, target)
-	}
-
-	if len(targets) == 0 {
-		return errors.New("no targets found: " + filename)
-	}
-	s.Targets = targets
-	return nil
-}
-
-func RegisterSuccess(outputFile *os.File, fileMutex *sync.Mutex, command string, target *Target, username, password string) {
-	target.Mutex.Lock()
-	target.Success = true
-	target.Mutex.Unlock()
-
-	successString := fmt.Sprintf("[%s] %s:%d [%s] [%s]", command, target.IP, target.Port, username, password)
-
-	logger.Successf(successString)
-
-	if outputFile != nil {
-		fileMutex.Lock()
-		_, _ = outputFile.WriteString(successString + "\n")
-		fileMutex.Unlock()
 	}
 }
