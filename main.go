@@ -12,7 +12,7 @@ import (
 const AUTHOR = "vflame6"
 
 // VERSION should be linked to actual tag
-const VERSION = "v0.0.8"
+const VERSION = "v0.0.9"
 
 // BANNER format string. It is used in PrintBanner function with VERSION
 const BANNER = "    __               __           \n   / /_  _______  __/ /____  _____\n  / __ \\/ ___/ / / / __/ _ \\/ ___/\n / /_/ / /  / /_/ / /_/  __/ /    \n/_.___/_/   \\__,_/\\__/\\___/_/      %s\n                                  \n"
@@ -60,6 +60,8 @@ var (
 	mongoCommand = app.Command("mongo", "MongoDB module")
 	// postgres
 	postgresCommand = app.Command("postgres", "PostgreSQL module")
+	// redis
+	redisCommand = app.Command("redis", "Redis module")
 	// smpp
 	smppCommand = app.Command("smpp", "SMPP module")
 	// ssh

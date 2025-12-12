@@ -14,6 +14,7 @@ var Commands = map[string]Command{
 	"ftp":        {21, FTPHandler, FTPChecker, "anonymous", "anonymous"},
 	"mongo":      {27017, MongoHandler, MongoChecker, "", ""},
 	"postgres":   {5432, PostgresHandler, PostgresChecker, "postgres", "postgres"},
+	"redis":      {6379, RedisHandler, RedisChecker, "", ""},
 	"smpp":       {2775, SMPPHandler, SMPPChecker, "smppclient1", "password"},
 	"ssh":        {22, SSHHandler, SSHChecker, "root", "123456"},
 	"vault":      {8200, VaultHandler, VaultChecker, "admin", "admin"},
