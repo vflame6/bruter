@@ -18,16 +18,7 @@
 
 ![bruter](static/bruter_demo.png)
 
-Available modules:
-
-- `amqp`
-- `clickhouse`
-- `etcd`
-- `ftp`
-- `mongo`
-- `smpp`
-- `ssh`
-- `vault`
+Available modules: `amqp`, `clickhouse`, `etcd`, `ftp`, `mongo`, `postgres`, `smpp`, `ssh`, `vault`
 
 ## Usage
 
@@ -66,7 +57,7 @@ Flags:
   -p, --password=PASSWORD      Password or file with passwords
   --[no-]version           Show application version.
 
-Commands: amqp clickhouse etcd ftp mongo smpp ssh vault
+Commands: amqp clickhouse etcd ftp mongo postgres smpp ssh vault
 ```
 
 Targets are specified in format `IP` or `IP:PORT`. If `PORT` is not specified, the tool uses the default one (for example: `9000` for ClickHouse). 
@@ -88,3 +79,15 @@ The tool performs a check for default credentials (hardcoded) for applicable ser
 ```shell
 go install -v github.com/vflame6/bruter@latest
 ```
+
+[Release Binaries](https://github.com/vflame6/bruter/releases)
+
+To Build:
+
+```
+go build -o bruter main.go
+```
+
+## Contributing
+
+Feel free to open an issue if something does not work, or if you have any issues. New ideas to improve the tool are much appreciated.

@@ -58,6 +58,8 @@ var (
 	ftpCommand = app.Command("ftp", "FTP module")
 	// mongodb
 	mongoCommand = app.Command("mongo", "MongoDB module")
+	// postgres
+	postgresCommand = app.Command("postgres", "PostgreSQL module")
 	// smpp
 	smppCommand = app.Command("smpp", "SMPP module")
 	// ssh

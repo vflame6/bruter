@@ -14,26 +14,6 @@ import (
 // BufferMultiplier defines the multiply value for Golang channel buffers
 const BufferMultiplier = 4
 
-// Commands stores all available services for bruteforce
-var Commands = map[string]Command{
-	"amqp":       {5672, modules.AMQPHandler, modules.AMQPChecker, "guest", "guest"},
-	"clickhouse": {9000, modules.ClickHouseHandler, modules.ClickHouseChecker, "default", ""},
-	"etcd":       {2379, modules.EtcdHandler, modules.EtcdChecker, "root", "123"},
-	"ftp":        {21, modules.FTPHandler, modules.FTPChecker, "anonymous", "anonymous"},
-	"mongo":      {27017, modules.MongoHandler, modules.MongoChecker, "", ""},
-	"smpp":       {2775, modules.SMPPHandler, modules.SMPPChecker, "smppclient1", "password"},
-	"ssh":        {22, modules.SSHHandler, modules.SSHChecker, "root", "123456"},
-	"vault":      {8200, modules.VaultHandler, modules.VaultChecker, "admin", "admin"},
-}
-
-type Command struct {
-	DefaultPort     int
-	Handler         modules.CommandHandler
-	Checker         modules.CommandChecker
-	DefaultUsername string
-	DefaultPassword string
-}
-
 type Scanner struct {
 	Opts     *Options
 	Targets  chan *Target
@@ -122,7 +102,7 @@ func (s *Scanner) Run(command, targets string) error {
 	var err error
 
 	// check if command is valid
-	c, ok := Commands[command]
+	c, ok := modules.Commands[command]
 	if !ok {
 		return errors.New("invalid command")
 	}
@@ -163,7 +143,7 @@ func (s *Scanner) Run(command, targets string) error {
 	return nil
 }
 
-func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, command *Command) {
+func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, command *modules.Command) {
 	defer wg.Done()
 
 	for {

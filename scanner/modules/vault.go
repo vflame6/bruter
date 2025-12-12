@@ -69,9 +69,7 @@ func ProbeVault(ip net.IP, port int, encryption bool, timeout time.Duration, use
 		url = fmt.Sprintf("http://%s:%d/v1/auth/userpass/login/%s", ip, port, username)
 	}
 
-	client := utils.NewHTTPClient(dialer, timeout)
-
-	resp, err := client.Post(url, "application/json", reqData)
+	resp, err := dialer.HTTPClient.Post(url, "application/json", reqData)
 	if err != nil {
 		return false, err
 	}
