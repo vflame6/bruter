@@ -4,13 +4,15 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/scanner/modules"
+	"github.com/vflame6/bruter/utils"
 	"os"
 	"strings"
 	"sync"
 	"time"
 )
 
-func ThreadHandler(handler CommandHandler, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
+func ThreadHandler(handler modules.CommandHandler, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
 	defer wg.Done()
 
 	for {
@@ -28,7 +30,7 @@ func ThreadHandler(handler CommandHandler, wg *sync.WaitGroup, credentials <-cha
 		}
 		logger.Debugf("trying %s:%s on %s:%d", credential.Username, credential.Password, target.IP, target.Port)
 
-		isConnected, isSuccess := handler(opts, target, credential)
+		isConnected, isSuccess := handler(target.IP, target.Port, target.Encryption, opts.Timeout, opts.ProxyDialer, credential.Username, credential.Password)
 
 		if opts.Retries > 0 && !isConnected {
 			target.Mutex.Lock()
@@ -67,7 +69,7 @@ func RegisterSuccess(outputFile *os.File, fileMutex *sync.Mutex, command string,
 
 func SendTargets(targets chan *Target, defaultPort int, filename string) {
 	// if filename is an actual file, parse it
-	if IsFileExists(filename) {
+	if utils.IsFileExists(filename) {
 		file, err := os.Open(filename)
 		if err != nil {
 			logger.Infof("failed to open targets file %s: %v", filename, err)
@@ -119,7 +121,7 @@ func ParseFileByLine(filename string) <-chan string {
 		defer close(out)
 
 		// if filename is a real file, parse it
-		if IsFileExists(filename) {
+		if utils.IsFileExists(filename) {
 			f, err := os.Open(filename)
 			if err != nil {
 				return

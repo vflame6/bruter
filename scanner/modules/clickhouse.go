@@ -1,4 +1,4 @@
-package scanner
+package modules
 
 import (
 	"context"
@@ -8,23 +8,19 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/utils"
 	"net"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// ClickHouseChecker is an implementation of CheckerHandler for ClickHouse service
-func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
-	defaultUsername := "default"
-	defaultPassword := ""
-
+// ClickHouseChecker is an implementation of CommandChecker for ClickHouse service
+func ClickHouseChecker(target net.IP, port int, timeout time.Duration, dialer *utils.ProxyAwareDialer, defaultUsername, defaultPassword string) (bool, bool, error) {
 	// Try TLS first
-	conn, errType, err := TestClickHouseConnection(target.IP, target.Port, true, defaultUsername, defaultPassword, opts.Timeout, opts.ProxyDialer)
+	conn, errType, err := TestClickHouseConnection(target, port, true, defaultUsername, defaultPassword, timeout, dialer)
 	if err == nil {
 		defer conn.Close()
-
-		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 		return true, true, nil
 	}
 
@@ -35,11 +31,10 @@ func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
 
 	// If it's a TLS error, try plaintext
 	if errType == "tls_error" {
-		logger.Debugf("failed to connect to %s:%d with TLS, trying plaintext", target.IP, target.Port)
-		conn, errType, err = TestClickHouseConnection(target.IP, target.Port, false, defaultUsername, defaultPassword, opts.Timeout, opts.ProxyDialer)
+		logger.Debugf("failed to connect to %s:%d with TLS, trying plaintext", target, port)
+		conn, errType, err = TestClickHouseConnection(target, port, false, defaultUsername, defaultPassword, timeout, dialer)
 		if err == nil {
 			defer conn.Close()
-			RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 			return true, false, nil
 		}
 
@@ -52,9 +47,9 @@ func ClickHouseChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // ClickHouseHandler is an implementation of CommandHandler for ClickHouse service
-func ClickHouseHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
+func ClickHouseHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
 	// get connection object
-	conn, err := GetClickHouseConnection(target.IP, target.Port, target.Encryption, credential.Username, credential.Password, opts.Timeout, opts.ProxyDialer)
+	conn, err := GetClickHouseConnection(target, port, encryption, username, password, timeout, dialer)
 	if err != nil {
 		// something wrong with library I guess, we do not perform connection here
 		return false, false
@@ -78,7 +73,7 @@ func ClickHouseHandler(opts *Options, target *Target, credential *Credential) (b
 	return true, true
 }
 
-func GetClickHouseConnection(address net.IP, port int, secure bool, username, password string, timeout time.Duration, d *ProxyAwareDialer) (driver.Conn, error) {
+func GetClickHouseConnection(address net.IP, port int, secure bool, username, password string, timeout time.Duration, d *utils.ProxyAwareDialer) (driver.Conn, error) {
 	addr := net.JoinHostPort(address.String(), strconv.Itoa(port))
 
 	opts := &clickhouse.Options{
@@ -95,10 +90,7 @@ func GetClickHouseConnection(address net.IP, port int, secure bool, username, pa
 	}
 
 	if secure {
-		opts.TLS = &tls.Config{
-			InsecureSkipVerify: true,
-			MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
-		}
+		opts.TLS = utils.GetTLSConfig()
 	}
 
 	conn, err := clickhouse.Open(opts)
@@ -109,7 +101,7 @@ func GetClickHouseConnection(address net.IP, port int, secure bool, username, pa
 	return conn, nil
 }
 
-func TestClickHouseConnection(address net.IP, port int, secure bool, username, password string, timeout time.Duration, d *ProxyAwareDialer) (driver.Conn, string, error) {
+func TestClickHouseConnection(address net.IP, port int, secure bool, username, password string, timeout time.Duration, d *utils.ProxyAwareDialer) (driver.Conn, string, error) {
 	addr := net.JoinHostPort(address.String(), strconv.Itoa(port))
 
 	opts := &clickhouse.Options{
@@ -126,10 +118,7 @@ func TestClickHouseConnection(address net.IP, port int, secure bool, username, p
 	}
 
 	if secure {
-		opts.TLS = &tls.Config{
-			InsecureSkipVerify: true,
-			MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
-		}
+		opts.TLS = utils.GetTLSConfig()
 	}
 
 	conn, err := clickhouse.Open(opts)

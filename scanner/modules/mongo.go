@@ -1,4 +1,4 @@
-package scanner
+package modules
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/utils"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -15,16 +16,12 @@ import (
 	"time"
 )
 
-// MongoChecker is an implementation of CheckerHandler for MongoDB service
-func MongoChecker(target *Target, opts *Options) (bool, bool, error) {
-	defaultUsername := ""
-	defaultPassword := ""
-
+// MongoChecker is an implementation of CommandChecker for MongoDB service
+func MongoChecker(target net.IP, port int, timeout time.Duration, dialer *utils.ProxyAwareDialer, defaultUsername, defaultPassword string) (bool, bool, error) {
 	// Try TLS first
-	client, err := GetDefaultMongoConnection(target.IP, target.Port, true, opts.Timeout, opts.ProxyDialer)
+	client, err := GetDefaultMongoConnection(target, port, true, timeout, dialer)
 	if err == nil {
 		defer client.Disconnect(context.Background())
-		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 		return true, true, nil
 	}
 
@@ -33,12 +30,11 @@ func MongoChecker(target *Target, opts *Options) (bool, bool, error) {
 		return false, true, nil
 	}
 
-	logger.Debugf("failed to connect to %s:%d with encryption, trying plaintext", target.IP, target.Port)
+	logger.Debugf("failed to connect to %s:%d with encryption, trying plaintext", target, port)
 	// Try plaintext
-	client, err = GetDefaultMongoConnection(target.IP, target.Port, false, opts.Timeout, opts.ProxyDialer)
+	client, err = GetDefaultMongoConnection(target, port, false, timeout, dialer)
 	if err == nil {
 		defer client.Disconnect(context.Background())
-		RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 		return true, false, nil
 	}
 	errType = classifyMongoError(err)
@@ -53,8 +49,8 @@ func MongoChecker(target *Target, opts *Options) (bool, bool, error) {
 // the return values are:
 // IsConnected (bool) to test if connection to the target is successful
 // IsAuthenticated (bool) to test if authentication is successful
-func MongoHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
-	client, err := GetAuthenticatedMongoConnection(target.IP, target.Port, target.Encryption, opts.Timeout, opts.ProxyDialer, credential.Username, credential.Password)
+func MongoHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
+	client, err := GetAuthenticatedMongoConnection(target, port, encryption, timeout, dialer, username, password)
 	if err != nil {
 		// check if it is a connection error
 		if classifyMongoError(err) != "auth_error" {
@@ -69,7 +65,7 @@ func MongoHandler(opts *Options, target *Target, credential *Credential) (bool, 
 	return true, true
 }
 
-func GetDefaultMongoConnection(address net.IP, port int, secure bool, timeout time.Duration, dialer *ProxyAwareDialer) (*mongo.Client, error) {
+func GetDefaultMongoConnection(address net.IP, port int, secure bool, timeout time.Duration, dialer *utils.ProxyAwareDialer) (*mongo.Client, error) {
 	addr := net.JoinHostPort(address.String(), strconv.Itoa(port))
 
 	opts := options.Client().
@@ -79,10 +75,7 @@ func GetDefaultMongoConnection(address net.IP, port int, secure bool, timeout ti
 		SetDialer(dialer)
 
 	if secure {
-		opts.SetTLSConfig(&tls.Config{
-			InsecureSkipVerify: true,
-			MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
-		})
+		opts.SetTLSConfig(utils.GetTLSConfig())
 	}
 
 	client, err := mongo.Connect(opts)
@@ -104,7 +97,7 @@ func GetDefaultMongoConnection(address net.IP, port int, secure bool, timeout ti
 	return client, nil
 }
 
-func GetAuthenticatedMongoConnection(address net.IP, port int, secure bool, timeout time.Duration, dialer *ProxyAwareDialer, username, password string) (*mongo.Client, error) {
+func GetAuthenticatedMongoConnection(address net.IP, port int, secure bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (*mongo.Client, error) {
 	addr := net.JoinHostPort(address.String(), strconv.Itoa(port))
 
 	opts := options.Client().
@@ -114,10 +107,7 @@ func GetAuthenticatedMongoConnection(address net.IP, port int, secure bool, time
 		SetDialer(dialer)
 
 	if secure {
-		opts.SetTLSConfig(&tls.Config{
-			InsecureSkipVerify: true,
-			MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
-		})
+		opts.SetTLSConfig(utils.GetTLSConfig())
 	}
 
 	if username != "" {

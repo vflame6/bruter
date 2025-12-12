@@ -1,39 +1,35 @@
-package scanner
+package modules
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/utils"
 	"io/ioutil"
 	"net"
 	"strings"
 	"time"
 )
 
-// VaultChecker is an implementation of CheckerHandler for HashiCorp Vault service
-func VaultChecker(target *Target, opts *Options) (bool, bool, error) {
-	defaultUsername := "mitchellh"
-	defaultPassword := "foo"
-
+// VaultChecker is an implementation of CommandChecker for HashiCorp Vault service
+func VaultChecker(target net.IP, port int, timeout time.Duration, dialer *utils.ProxyAwareDialer, defaultUsername, defaultPassword string) (bool, bool, error) {
 	success := false
 	secure := false
 
 	// try with encryption first
-	probe, err := ProbeVault(target.IP, target.Port, true, opts.Timeout, defaultUsername, defaultPassword, opts.ProxyDialer)
+	probe, err := ProbeVault(target, port, true, timeout, defaultUsername, defaultPassword, dialer)
 	if err == nil {
 		secure = true
 		if probe {
-			RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 			success = true
 		}
 	} else {
-		logger.Debugf("(%s:%d) failed to connect to Vault with encryption, trying plaintext", target.IP, target.Port)
+		logger.Debugf("(%s:%d) failed to connect to Vault with encryption, trying plaintext", target, port)
 		// connect via plaintext FTP
-		probe, err = ProbeVault(target.IP, target.Port, false, opts.Timeout, defaultUsername, defaultPassword, opts.ProxyDialer)
+		probe, err = ProbeVault(target, port, false, timeout, defaultUsername, defaultPassword, dialer)
 		if err == nil {
 			if probe {
-				RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 				success = true
 			}
 		} else {
@@ -46,8 +42,8 @@ func VaultChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // VaultHandler is an implementation of CommandHandler for HashiCorp Vault service
-func VaultHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
-	probe, err := ProbeVault(target.IP, target.Port, target.Encryption, opts.Timeout, credential.Username, credential.Password, opts.ProxyDialer)
+func VaultHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
+	probe, err := ProbeVault(target, port, encryption, timeout, username, password, dialer)
 	if err != nil {
 		// not connected
 		return false, false
@@ -57,7 +53,7 @@ func VaultHandler(opts *Options, target *Target, credential *Credential) (bool, 
 	return true, probe
 }
 
-func ProbeVault(ip net.IP, port int, encryption bool, timeout time.Duration, username, password string, dialer *ProxyAwareDialer) (bool, error) {
+func ProbeVault(ip net.IP, port int, encryption bool, timeout time.Duration, username, password string, dialer *utils.ProxyAwareDialer) (bool, error) {
 	reqJson, err := json.Marshal(map[string]string{
 		"password": password,
 	})
@@ -73,7 +69,7 @@ func ProbeVault(ip net.IP, port int, encryption bool, timeout time.Duration, use
 		url = fmt.Sprintf("http://%s:%d/v1/auth/userpass/login/%s", ip, port, username)
 	}
 
-	client := NewHTTPClient(dialer, timeout)
+	client := utils.NewHTTPClient(dialer, timeout)
 
 	resp, err := client.Post(url, "application/json", reqData)
 	if err != nil {

@@ -1,9 +1,9 @@
-package scanner
+package modules
 
 import (
 	"context"
-	"crypto/tls"
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/utils"
 	etcd "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -22,29 +22,24 @@ var etcdLoggerCfg = zap.Config{
 
 var etcdLogger, _ = etcdLoggerCfg.Build()
 
-// EtcdChecker is an implementation of CheckerHandler for etcd service
-func EtcdChecker(target *Target, opts *Options) (bool, bool, error) {
-	defaultUsername := "root"
-	defaultPassword := "123"
-
+// EtcdChecker is an implementation of CommandChecker for etcd service
+func EtcdChecker(target net.IP, port int, timeout time.Duration, dialer *utils.ProxyAwareDialer, defaultUsername, defaultPassword string) (bool, bool, error) {
 	success := false
 	secure := false
 
 	// try with encryption first
-	probe, err := ProbeEtcd(target.IP, target.Port, true, opts.Timeout, opts.ProxyDialer, defaultUsername, defaultPassword)
+	probe, err := ProbeEtcd(target, port, true, timeout, dialer, defaultUsername, defaultPassword)
 	if err == nil {
 		secure = true
 		if probe {
-			RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 			success = true
 		}
 	} else {
-		logger.Debugf("(%s:%d) failed to connect to etcd with encryption, trying plaintext", target.IP, target.Port)
+		logger.Debugf("(%s:%d) failed to connect to etcd with encryption, trying plaintext", target, port)
 		// connect via plaintext FTP
-		probe, err = ProbeEtcd(target.IP, target.Port, false, opts.Timeout, opts.ProxyDialer, defaultUsername, defaultPassword)
+		probe, err = ProbeEtcd(target, port, false, timeout, dialer, defaultUsername, defaultPassword)
 		if err == nil {
 			if probe {
-				RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 				success = true
 			}
 		} else {
@@ -57,8 +52,8 @@ func EtcdChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // EtcdHandler is an implementation of CommandHandler for etcd service
-func EtcdHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
-	probe, err := ProbeEtcd(target.IP, target.Port, target.Encryption, opts.Timeout, opts.ProxyDialer, credential.Username, credential.Password)
+func EtcdHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
+	probe, err := ProbeEtcd(target, port, encryption, timeout, dialer, username, password)
 	if err != nil {
 		// not connected
 		return false, false
@@ -68,7 +63,7 @@ func EtcdHandler(opts *Options, target *Target, credential *Credential) (bool, b
 	return true, probe
 }
 
-func ProbeEtcd(ip net.IP, port int, encryption bool, timeout time.Duration, d *ProxyAwareDialer, username, password string) (bool, error) {
+func ProbeEtcd(ip net.IP, port int, encryption bool, timeout time.Duration, d *utils.ProxyAwareDialer, username, password string) (bool, error) {
 	var client *etcd.Client
 	var err error
 
@@ -86,10 +81,7 @@ func ProbeEtcd(ip net.IP, port int, encryption bool, timeout time.Duration, d *P
 			DialOptions: dialOptions,
 			Endpoints:   []string{net.JoinHostPort(ip.String(), strconv.Itoa(port))},
 			DialTimeout: timeout,
-			TLS: &tls.Config{
-				InsecureSkipVerify: true,
-				MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
-			},
+			TLS:         utils.GetTLSConfig(),
 		})
 	} else {
 		client, err = etcd.New(etcd.Config{

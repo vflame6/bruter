@@ -1,9 +1,10 @@
-package scanner
+package modules
 
 import (
 	"errors"
 	"fmt"
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/utils"
 	"golang.org/x/crypto/ssh"
 	"net"
 	"strconv"
@@ -15,18 +16,15 @@ var (
 	ErrSSHMethodNotAllowed = errors.New("ssh auth method not supported")
 )
 
-// SSHChecker is an implementation of CheckerHandler for SSH service
-func SSHChecker(target *Target, opts *Options) (bool, bool, error) {
-	defaultUsername := "root"
-	defaultPassword := "123456"
-
+// SSHChecker is an implementation of CommandChecker for SSH service
+func SSHChecker(target net.IP, port int, timeout time.Duration, dialer *utils.ProxyAwareDialer, defaultUsername, defaultPassword string) (bool, bool, error) {
 	success := false
-	// SSH is always encrypted, so we always return false here
+	// SSH is always encrypted, so we always return false for secure here
 
-	check, err := ProbeSSH(target.IP, target.Port, opts.Timeout, opts.ProxyDialer, defaultUsername, defaultPassword)
+	check, err := ProbeSSH(target, port, timeout, dialer, defaultUsername, defaultPassword)
 	if err != nil {
 		if errors.Is(err, ErrSSHMethodNotAllowed) {
-			logger.Infof("SSH server %s does not support password authentication", target.IP)
+			logger.Infof("SSH server %s does not support password authentication", target)
 		}
 
 		// not connected
@@ -40,8 +38,8 @@ func SSHChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // SSHHandler is an implementation of CommandHandler for SSH service
-func SSHHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
-	success, err := ProbeSSH(target.IP, target.Port, opts.Timeout, opts.ProxyDialer, credential.Username, credential.Password)
+func SSHHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
+	success, err := ProbeSSH(target, port, timeout, dialer, username, password)
 	if err != nil {
 		// not connected
 		return false, false
@@ -51,7 +49,7 @@ func SSHHandler(opts *Options, target *Target, credential *Credential) (bool, bo
 	return true, success
 }
 
-func ProbeSSH(ip net.IP, port int, timeout time.Duration, dialer *ProxyAwareDialer, username, password string) (bool, error) {
+func ProbeSSH(ip net.IP, port int, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, error) {
 	addr := net.JoinHostPort(ip.String(), strconv.Itoa(port))
 
 	supported := ssh.SupportedAlgorithms()

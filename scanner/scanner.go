@@ -3,6 +3,8 @@ package scanner
 import (
 	"errors"
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/scanner/modules"
+	"github.com/vflame6/bruter/utils"
 	"net"
 	"os"
 	"sync"
@@ -14,35 +16,23 @@ const BufferMultiplier = 4
 
 // Commands stores all available services for bruteforce
 var Commands = map[string]Command{
-	"amqp":       {5672, AMQPHandler, AMQPChecker},
-	"clickhouse": {9000, ClickHouseHandler, ClickHouseChecker},
-	"etcd":       {2379, EtcdHandler, EtcdChecker},
-	"ftp":        {21, FTPHandler, FTPChecker},
-	"mongo":      {27017, MongoHandler, MongoChecker},
-	"smpp":       {2775, SMPPHandler, SMPPChecker},
-	"ssh":        {22, SSHHandler, SSHChecker},
-	"vault":      {8200, VaultHandler, VaultChecker},
+	"amqp":       {5672, modules.AMQPHandler, modules.AMQPChecker, "guest", "guest"},
+	"clickhouse": {9000, modules.ClickHouseHandler, modules.ClickHouseChecker, "default", ""},
+	"etcd":       {2379, modules.EtcdHandler, modules.EtcdChecker, "root", "123"},
+	"ftp":        {21, modules.FTPHandler, modules.FTPChecker, "anonymous", "anonymous"},
+	"mongo":      {27017, modules.MongoHandler, modules.MongoChecker, "", ""},
+	"smpp":       {2775, modules.SMPPHandler, modules.SMPPChecker, "smppclient1", "password"},
+	"ssh":        {22, modules.SSHHandler, modules.SSHChecker, "root", "123456"},
+	"vault":      {8200, modules.VaultHandler, modules.VaultChecker, "admin", "admin"},
 }
 
 type Command struct {
-	DefaultPort int
-	Handler     CommandHandler
-	Checker     CheckerHandler
+	DefaultPort     int
+	Handler         modules.CommandHandler
+	Checker         modules.CommandChecker
+	DefaultUsername string
+	DefaultPassword string
 }
-
-// CommandHandler is a type function for one bruteforce thread
-// the return values are:
-// IsConnected (bool) to test if connection to the target is successful
-// IsAuthenticated (bool) to test if authentication is successful
-type CommandHandler func(opts *Options, target *Target, credential *Credential) (bool, bool)
-
-// CheckerHandler is a type function for service checker function
-// the return values are:
-// DEFAULT (bool) for test if the target has default credentials
-// ENCRYPTION (bool) for test if the target is using encryption
-// ERROR (error) for connection errors
-// if checker could not be implemented for target service, the checker must return false, false, nil
-type CheckerHandler func(target *Target, opts *Options) (bool, bool, error)
 
 type Scanner struct {
 	Opts     *Options
@@ -58,7 +48,7 @@ type Options struct {
 	Delay          time.Duration
 	StopOnSuccess  bool
 	Retries        int
-	ProxyDialer    *ProxyAwareDialer // --proxy
+	ProxyDialer    *utils.ProxyAwareDialer // --proxy
 	OutputFileName string
 	OutputFile     *os.File
 	Usernames      string
@@ -93,7 +83,7 @@ func NewScanner(timeout int, output string, parallel, threads, delay int, stopOn
 	}
 
 	// custom dialer to handle proxy settings
-	dialer, err := NewProxyAwareDialer(proxyStr, proxyAuthStr, time.Duration(timeout)*time.Second)
+	dialer, err := utils.NewProxyAwareDialer(proxyStr, proxyAuthStr, time.Duration(timeout)*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -145,8 +135,8 @@ func (s *Scanner) Run(command, targets string) error {
 	}
 
 	// if number of targets is less than number of parallels, decrease parallels
-	if IsFileExists(targets) {
-		count, err = CountLinesInFile(targets)
+	if utils.IsFileExists(targets) {
+		count, err = utils.CountLinesInFile(targets)
 		if err != nil {
 			return err
 		}
@@ -166,14 +156,14 @@ func (s *Scanner) Run(command, targets string) error {
 	for i := 0; i < s.Parallel; i++ {
 		parallelWg.Add(1)
 
-		go s.ParallelHandler(&parallelWg, c.Checker, c.Handler)
+		go s.ParallelHandler(&parallelWg, &c)
 	}
 	parallelWg.Wait()
 
 	return nil
 }
 
-func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, checker CheckerHandler, handler CommandHandler) {
+func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, command *Command) {
 	defer wg.Done()
 
 	for {
@@ -184,7 +174,7 @@ func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, checker CheckerHandler, ha
 
 		// check with checker
 		logger.Debugf("trying default credentials on %s:%d", target.IP, target.Port)
-		defaultCreds, encryption, err := checker(target, s.Opts)
+		defaultCreds, encryption, err := command.Checker(target.IP, target.Port, s.Opts.Timeout, s.Opts.ProxyDialer, command.DefaultUsername, command.DefaultPassword)
 		if err != nil {
 			logger.Debug(err)
 			continue
@@ -193,9 +183,12 @@ func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, checker CheckerHandler, ha
 		// assign if encryption is used
 		target.Encryption = encryption
 
-		// skip target if default credentials are found and --stop-on-success is enabled
-		if defaultCreds && s.Opts.StopOnSuccess {
-			continue
+		if defaultCreds {
+			RegisterSuccess(s.Opts.OutputFile, &s.Opts.FileMutex, s.Opts.Command, target, command.DefaultUsername, command.DefaultPassword)
+			// skip target if default credentials are found and --stop-on-success is enabled
+			if s.Opts.StopOnSuccess {
+				continue
+			}
 		}
 
 		// wait for delay before start
@@ -210,7 +203,7 @@ func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, checker CheckerHandler, ha
 		var threadWg sync.WaitGroup
 		for i := 0; i < s.Opts.Threads; i++ {
 			threadWg.Add(1)
-			go ThreadHandler(handler, &threadWg, credentials, s.Opts, target)
+			go ThreadHandler(command.Handler, &threadWg, credentials, s.Opts, target)
 		}
 		threadWg.Wait()
 	}

@@ -1,40 +1,35 @@
-package scanner
+package modules
 
 import (
-	"crypto/tls"
 	"fmt"
 	"github.com/jlaffaye/ftp"
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/utils"
 	"net"
 	"time"
 )
 
-// FTPChecker is an implementation of CheckerHandler for FTP service
-func FTPChecker(target *Target, opts *Options) (bool, bool, error) {
-	defaultUsername := "anonymous"
-	defaultPassword := "anonymous"
-
+// FTPChecker is an implementation of CommandChecker for FTP service
+func FTPChecker(target net.IP, port int, timeout time.Duration, dialer *utils.ProxyAwareDialer, defaultUsername, defaultPassword string) (bool, bool, error) {
 	success := false
 	secure := false
 
 	// try with encryption first
-	conn, err := GetFTPConnection(target.IP, target.Port, true, opts.Timeout, opts.ProxyDialer)
+	conn, err := GetFTPConnection(target, port, true, timeout, dialer)
 	if err == nil {
 		secure = true
 		err = conn.Login(defaultUsername, defaultPassword)
 		if err == nil {
-			RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 			success = true
 		}
 		conn.Quit()
 	} else {
-		logger.Debugf("failed to connect to %s:%d with encryption, trying plaintext", target.IP, target.Port)
+		logger.Debugf("failed to connect to %s:%d with encryption, trying plaintext", target, port)
 		// connect via plaintext FTP
-		conn, err := GetFTPConnection(target.IP, target.Port, false, opts.Timeout, opts.ProxyDialer)
+		conn, err := GetFTPConnection(target, port, false, timeout, dialer)
 		if err == nil {
 			err = conn.Login(defaultUsername, defaultPassword)
 			if err == nil {
-				RegisterSuccess(opts.OutputFile, &opts.FileMutex, opts.Command, target, defaultUsername, defaultPassword)
 				success = true
 			}
 			conn.Quit()
@@ -48,14 +43,14 @@ func FTPChecker(target *Target, opts *Options) (bool, bool, error) {
 }
 
 // FTPHandler is an implementation of CommandHandler for FTP service
-func FTPHandler(opts *Options, target *Target, credential *Credential) (bool, bool) {
-	conn, err := GetFTPConnection(target.IP, target.Port, target.Encryption, opts.Timeout, opts.ProxyDialer)
+func FTPHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
+	conn, err := GetFTPConnection(target, port, encryption, timeout, dialer)
 	if err != nil {
 		// not connected
 		return false, false
 	}
 	defer conn.Quit()
-	err = conn.Login(credential.Username, credential.Password)
+	err = conn.Login(username, password)
 	if err != nil {
 		// connected, but not authenticated
 		return true, false
@@ -65,7 +60,7 @@ func FTPHandler(opts *Options, target *Target, credential *Credential) (bool, bo
 	return true, true
 }
 
-func GetFTPConnection(ip net.IP, port int, encryption bool, timeout time.Duration, dialer *ProxyAwareDialer) (*ftp.ServerConn, error) {
+func GetFTPConnection(ip net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer) (*ftp.ServerConn, error) {
 	connString := fmt.Sprintf("%s:%d", ip, port)
 
 	if encryption {
@@ -73,10 +68,7 @@ func GetFTPConnection(ip net.IP, port int, encryption bool, timeout time.Duratio
 			connString,
 			ftp.DialWithTimeout(timeout),
 			ftp.DialWithDialFunc(dialer.Dial),
-			ftp.DialWithExplicitTLS(&tls.Config{
-				InsecureSkipVerify: true,
-				MinVersion:         tls.VersionTLS10, // Allow older TLS for compatibility
-			}),
+			ftp.DialWithExplicitTLS(utils.GetTLSConfig()),
 		)
 		if err != nil {
 			return nil, err
