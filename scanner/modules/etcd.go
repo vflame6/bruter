@@ -51,7 +51,7 @@ func EtcdChecker(target net.IP, port int, timeout time.Duration, dialer *utils.P
 	return success, secure, nil
 }
 
-// EtcdHandler is an implementation of CommandHandler for etcd service
+// EtcdHandler is an implementation of ModuleHandler for etcd service
 func EtcdHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
 	probe, err := ProbeEtcd(target, port, encryption, timeout, dialer, username, password)
 	if err != nil {

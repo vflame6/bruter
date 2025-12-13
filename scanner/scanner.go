@@ -15,25 +15,27 @@ import (
 const BufferMultiplier = 4
 
 type Scanner struct {
-	Opts     *Options
-	Targets  chan *Target
-	Port     int
-	Parallel int
+	Opts    *Options
+	Targets chan *Target
 }
 
 type Options struct {
-	Command        string
-	Timeout        time.Duration
-	Threads        int
-	Delay          time.Duration
-	StopOnSuccess  bool
-	Retries        int
-	ProxyDialer    *utils.ProxyAwareDialer // --proxy
-	OutputFileName string
-	OutputFile     *os.File
-	Usernames      string
-	Passwords      string
-	FileMutex      sync.Mutex
+	Usernames           string
+	Passwords           string
+	Command             string
+	Timeout             time.Duration
+	Parallel            int
+	Threads             int
+	Delay               time.Duration
+	StopOnSuccess       bool
+	Retries             int
+	Proxy               string
+	ProxyAuthentication string
+	ProxyDialer         *utils.ProxyAwareDialer // --proxy
+	UserAgent           string                  // --user-agent
+	OutputFileName      string
+	OutputFile          *os.File
+	FileMutex           sync.Mutex
 }
 
 type Target struct {
@@ -50,43 +52,41 @@ type Credential struct {
 	Password string
 }
 
-func NewScanner(timeout int, output string, parallel, threads, delay int, stopOnSuccess bool, retries int, proxyStr, proxyAuthStr, username, password string) (*Scanner, error) {
+// NewScanner function creates new scanner object based on options
+func NewScanner(options *Options) (*Scanner, error) {
 	var outputFile *os.File
 	var err error
 
-	if output != "" {
-		var err error
-		outputFile, err = os.Create(output)
-		if err != nil {
-			return nil, err
-		}
+	// validate options
+	if options.Parallel <= 0 || options.Threads <= 0 {
+		return nil, errors.New("invalid numbers for concurrency")
+	}
+	if options.Retries < 0 {
+		return nil, errors.New("invalid number for retries")
 	}
 
-	// custom dialer to handle proxy settings
-	dialer, err := utils.NewProxyAwareDialer(proxyStr, proxyAuthStr, time.Duration(timeout)*time.Second)
+	// custom dialer to handle connections, proxy settings and http clients
+	dialer, err := utils.NewProxyAwareDialer(options.Proxy, options.ProxyAuthentication, options.Timeout, options.UserAgent)
 	if err != nil {
 		return nil, err
 	}
+	options.ProxyDialer = dialer
 
-	parallelTargets := make(chan *Target, parallel*BufferMultiplier)
-
-	options := Options{
-		Timeout:        time.Duration(timeout) * time.Second,
-		Threads:        threads,
-		Delay:          time.Duration(delay) * time.Millisecond,
-		StopOnSuccess:  stopOnSuccess,
-		Retries:        retries,
-		ProxyDialer:    dialer,
-		OutputFileName: output,
-		OutputFile:     outputFile,
-		Usernames:      username,
-		Passwords:      password,
+	// if an --output option is used, create a file
+	if options.OutputFileName != "" {
+		var err error
+		outputFile, err = os.Create(options.OutputFileName)
+		if err != nil {
+			return nil, err
+		}
+		options.OutputFile = outputFile
 	}
 
+	parallelTargets := make(chan *Target, options.Parallel*BufferMultiplier)
+
 	s := Scanner{
-		Targets:  parallelTargets,
-		Opts:     &options,
-		Parallel: parallel,
+		Targets: parallelTargets,
+		Opts:    options,
 	}
 
 	return &s, nil
@@ -102,7 +102,7 @@ func (s *Scanner) Run(command, targets string) error {
 	var err error
 
 	// check if command is valid
-	c, ok := modules.Commands[command]
+	c, ok := modules.Modules[command]
 	if !ok {
 		return errors.New("invalid command")
 	}
@@ -123,9 +123,9 @@ func (s *Scanner) Run(command, targets string) error {
 	} else {
 		count = 1
 	}
-	if count < s.Parallel {
+	if count < s.Opts.Parallel {
 		logger.Debugf("number of targets less than number of parallel targets, decreasing parallelism")
-		s.Parallel = count
+		s.Opts.Parallel = count
 	}
 
 	// send targets to targets channel
@@ -133,7 +133,7 @@ func (s *Scanner) Run(command, targets string) error {
 
 	// run parallel threads
 	var parallelWg sync.WaitGroup
-	for i := 0; i < s.Parallel; i++ {
+	for i := 0; i < s.Opts.Parallel; i++ {
 		parallelWg.Add(1)
 
 		go s.ParallelHandler(&parallelWg, &c)
@@ -143,7 +143,7 @@ func (s *Scanner) Run(command, targets string) error {
 	return nil
 }
 
-func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, command *modules.Command) {
+func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, command *modules.Module) {
 	defer wg.Done()
 
 	for {

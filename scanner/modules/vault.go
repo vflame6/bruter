@@ -41,7 +41,7 @@ func VaultChecker(target net.IP, port int, timeout time.Duration, dialer *utils.
 	return success, secure, nil
 }
 
-// VaultHandler is an implementation of CommandHandler for HashiCorp Vault service
+// VaultHandler is an implementation of ModuleHandler for HashiCorp Vault service
 func VaultHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
 	probe, err := ProbeVault(target, port, encryption, timeout, username, password, dialer)
 	if err != nil {

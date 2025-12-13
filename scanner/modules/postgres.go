@@ -43,7 +43,7 @@ func PostgresChecker(target net.IP, port int, timeout time.Duration, dialer *uti
 	return true, false, nil
 }
 
-// PostgresHandler is an implementation of CommandHandler for PostgreSQL service
+// PostgresHandler is an implementation of ModuleHandler for PostgreSQL service
 func PostgresHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
 	_, err := GetPostgresConnection(target, port, encryption, dialer, username, password)
 	if err != nil {

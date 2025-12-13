@@ -40,7 +40,7 @@ func AMQPChecker(target net.IP, port int, timeout time.Duration, dialer *utils.P
 	return success, secure, nil
 }
 
-// AMQPHandler is an implementation of CommandHandler for AMQP service
+// AMQPHandler is an implementation of ModuleHandler for AMQP service
 func AMQPHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
 	probe, err := ProbeAMQP(target, port, encryption, dialer, username, password)
 	if err != nil {

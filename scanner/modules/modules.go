@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// Commands stores all available services for bruteforce
-var Commands = map[string]Command{
+// Modules stores all available services for bruteforce
+var Modules = map[string]Module{
 	"amqp":       {5672, AMQPHandler, AMQPChecker, "guest", "guest"},
 	"clickhouse": {9000, ClickHouseHandler, ClickHouseChecker, "default", ""},
 	"etcd":       {2379, EtcdHandler, EtcdChecker, "root", "123"},
@@ -20,9 +20,9 @@ var Commands = map[string]Command{
 	"vault":      {8200, VaultHandler, VaultChecker, "admin", "admin"},
 }
 
-type Command struct {
+type Module struct {
 	DefaultPort     int
-	Handler         CommandHandler
+	Handler         ModuleHandler
 	Checker         CommandChecker
 	DefaultUsername string
 	DefaultPassword string
@@ -36,8 +36,8 @@ type Command struct {
 // if checker could not be implemented for target service, the checker must return false, false, nil
 type CommandChecker func(target net.IP, port int, timeout time.Duration, dialer *utils.ProxyAwareDialer, defaultUsername, defaultPassword string) (bool, bool, error)
 
-// CommandHandler is a type function for one bruteforce thread
+// ModuleHandler is a type function for one bruteforce thread
 // the return values are:
 // IsConnected (bool) to test if connection to the target is successful
 // IsAuthenticated (bool) to test if authentication is successful
-type CommandHandler func(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool)
+type ModuleHandler func(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool)

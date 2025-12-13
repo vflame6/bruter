@@ -13,13 +13,27 @@ import (
 	"golang.org/x/net/proxy"
 )
 
+// CustomTransport wraps http.Transport and adds a default User-Agent header.
+type CustomTransport struct {
+	Transport http.RoundTripper
+	UserAgent string
+}
+
+// RoundTrip implements the http.RoundTripper interface.
+func (t *CustomTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Set the User-Agent header on the request.
+	req.Header.Set("User-Agent", t.UserAgent)
+	// Use the underlying transport to perform the actual request.
+	return t.Transport.RoundTrip(req)
+}
+
 type ProxyAwareDialer struct {
 	dialer     proxy.Dialer
 	timeout    time.Duration
 	HTTPClient *http.Client
 }
 
-func NewProxyAwareDialer(proxyHost, proxyAuth string, timeout time.Duration) (*ProxyAwareDialer, error) {
+func NewProxyAwareDialer(proxyHost, proxyAuth string, timeout time.Duration, userAgent string) (*ProxyAwareDialer, error) {
 	var dialer proxy.Dialer
 
 	if proxyHost != "" {
@@ -52,9 +66,12 @@ func NewProxyAwareDialer(proxyHost, proxyAuth string, timeout time.Duration) (*P
 		timeout: timeout,
 	}
 
-	tr := &http.Transport{
-		DialContext:     d.DialContext,
-		TLSClientConfig: GetTLSConfig(),
+	tr := &CustomTransport{
+		Transport: &http.Transport{
+			DialContext:     d.DialContext,
+			TLSClientConfig: GetTLSConfig(),
+		},
+		UserAgent: userAgent,
 	}
 
 	httpClient := &http.Client{

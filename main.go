@@ -12,31 +12,14 @@ import (
 const AUTHOR = "vflame6"
 
 // VERSION should be linked to actual tag
-const VERSION = "v0.1.0"
+const VERSION = "v0.1.1"
 
 // BANNER format string. It is used in PrintBanner function with VERSION
 const BANNER = "    __               __           \n   / /_  _______  __/ /____  _____\n  / __ \\/ ___/ / / / __/ _ \\/ ___/\n / /_/ / /  / /_/ / /_/  __/ /    \n/_.___/_/   \\__,_/\\__/\\___/_/      %s\n                                  \n"
 
 // program commands, flags and arguments
 var (
-	app       = kingpin.New("bruter", "bruter is a network services bruteforce tool.")
-	quietFlag = app.Flag("quiet", "Enable quiet mode, print results only").Short('q').Default("false").Bool()
-	debugFlag = app.Flag("debug", "Enable debug mode, print all logs").Short('D').Default("false").Bool()
-
-	// file output flags
-	outputFlag = app.Flag("output", "Filename to write output in raw format").Short('o').Default("").String()
-
-	// optimization flags
-	parallelFlag      = app.Flag("concurrent-hosts", "Number of targets in parallel").Short('C').Default("32").Int()
-	threadsFlag       = app.Flag("concurrent-threads", "Number of parallel threads per target").Short('c').Default("10").Int()
-	delayFlag         = app.Flag("delay", "Delay in millisecond between each attempt. Will always use single thread if set").Short('d').Default("0").Int()
-	timeoutFlag       = app.Flag("timeout", "Connection timeout in seconds").Default("5").Int()
-	stopOnSuccessFlag = app.Flag("stop-on-success", "Stop bruteforce the host on first success").Default("false").Bool()
-	retryFlag         = app.Flag("max-retries", "Number of connection errors to stop bruteforce the host. Specify 0 to disable this behavior").Default("30").Int()
-
-	// connection flags
-	proxyFlag     = app.Flag("proxy", "SOCKS-proxy address to use for connection in format IP:PORT").Default("").String()
-	proxyAuthFlag = app.Flag("proxy-auth", "Proxy username and password in format username:password").Default("").String()
+	app = kingpin.New("bruter", "bruter is a network services bruteforce tool.")
 
 	// targets
 	targetFlag = app.Flag("target", "Target host or file with targets. Format host or host:port, one per line").Short('t').Required().String()
@@ -45,13 +28,33 @@ var (
 	usernameFlag = app.Flag("username", "Username or file with usernames").Short('u').Required().String()
 	passwordFlag = app.Flag("password", "Password or file with passwords").Short('p').Required().String()
 
+	// optimization flags
+	parallelFlag      = app.Flag("concurrent-hosts", "Number of targets in parallel").Short('C').Default("32").Int()
+	threadsFlag       = app.Flag("concurrent-threads", "Number of parallel threads per target").Short('c').Default("10").Int()
+	delayFlag         = app.Flag("delay", "Delay between each attempt. Will always use single thread if set").Short('d').Default("0s").Duration()
+	timeoutFlag       = app.Flag("timeout", "Connection timeout in seconds").Default("5s").Duration()
+	stopOnSuccessFlag = app.Flag("stop-on-success", "Stop bruteforce the host on first success").Default("false").Bool()
+	retryFlag         = app.Flag("max-retries", "Number of connection errors to stop bruteforce the host. Specify 0 to disable this behavior").Default("30").Int()
+
+	// connection flags
+	proxyFlag     = app.Flag("proxy", "SOCKS-proxy address to use for connection in format IP:PORT").Default("").String()
+	proxyAuthFlag = app.Flag("proxy-auth", "Proxy username and password in format username:password").Default("").String()
+
+	// http flags
+	userAgentFlag = app.Flag("user-agent", "User-Agent for HTTP connections").Default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36").String()
+
+	// output options
+	quietFlag  = app.Flag("quiet", "Enable quiet mode, print results only").Short('q').Default("false").Bool()
+	debugFlag  = app.Flag("debug", "Enable debug mode, print all logs").Short('D').Default("false").Bool()
+	outputFlag = app.Flag("output", "Filename to write output in raw format").Short('o').Default("").String()
+
 	// available modules
 	// sort alphabetically
 
 	// amqp
 	amqpCommand = app.Command("amqp", "AMQP module")
 	// clickhouse
-	clickhouseCommand = app.Command("clickhouse", "ClickHouse module")
+	clickhouseCommand = app.Command("clickhouse", "ClickHouse module (native)")
 	// etcd
 	etcdCommand = app.Command("etcd", "etcd module")
 	// ftp
@@ -67,7 +70,7 @@ var (
 	// ssh
 	sshCommand = app.Command("ssh", "SSH module")
 	// vault
-	vaultCommand = app.Command("vault", "HashiCorp Vault userpass module")
+	vaultCommand = app.Command("vault", "HashiCorp Vault module (http)")
 )
 
 // CustomUsageTemplate is a template for kingpin's help menu
@@ -179,20 +182,23 @@ func main() {
 		logger.Infof("executing %s module", command)
 	}
 
+	// pass scanner options
+	options := scanner.Options{
+		Usernames:           *usernameFlag,
+		Passwords:           *passwordFlag,
+		Parallel:            *parallelFlag,
+		Threads:             *threadsFlag,
+		Timeout:             *timeoutFlag,
+		Delay:               *delayFlag,
+		StopOnSuccess:       *stopOnSuccessFlag,
+		Retries:             *retryFlag,
+		Proxy:               *proxyFlag,
+		ProxyAuthentication: *proxyAuthFlag,
+		UserAgent:           *userAgentFlag,
+		OutputFileName:      *outputFlag,
+	}
 	// try to create scanner
-	s, err := scanner.NewScanner(
-		*timeoutFlag,
-		*outputFlag,
-		*parallelFlag,
-		*threadsFlag,
-		*delayFlag,
-		*stopOnSuccessFlag,
-		*retryFlag,
-		*proxyFlag,
-		*proxyAuthFlag,
-		*usernameFlag,
-		*passwordFlag,
-	)
+	s, err := scanner.NewScanner(&options)
 	if err != nil {
 		logger.Fatal(err)
 	}

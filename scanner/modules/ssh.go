@@ -37,7 +37,7 @@ func SSHChecker(target net.IP, port int, timeout time.Duration, dialer *utils.Pr
 	return success, false, nil
 }
 
-// SSHHandler is an implementation of CommandHandler for SSH service
+// SSHHandler is an implementation of ModuleHandler for SSH service
 func SSHHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
 	success, err := ProbeSSH(target, port, timeout, dialer, username, password)
 	if err != nil {

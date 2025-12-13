@@ -45,7 +45,7 @@ func MongoChecker(target net.IP, port int, timeout time.Duration, dialer *utils.
 	return false, false, fmt.Errorf("connection failed: %w", err)
 }
 
-// MongoHandler is an implementation of CommandHandler for MongoDB service
+// MongoHandler is an implementation of ModuleHandler for MongoDB service
 // the return values are:
 // IsConnected (bool) to test if connection to the target is successful
 // IsAuthenticated (bool) to test if authentication is successful

@@ -85,7 +85,7 @@ func SMPPChecker(target net.IP, port int, timeout time.Duration, dialer *utils.P
 	return false, false, fmt.Errorf("connection failed: %w", err)
 }
 
-// SMPPHandler is an implementation of CommandHandler for SMPP service
+// SMPPHandler is an implementation of ModuleHandler for SMPP service
 // the return values are:
 // IsConnected (bool) to test if connection to the target is successful
 // IsAuthenticated (bool) to test if authentication is successful

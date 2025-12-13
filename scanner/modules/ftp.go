@@ -42,7 +42,7 @@ func FTPChecker(target net.IP, port int, timeout time.Duration, dialer *utils.Pr
 	return success, secure, nil
 }
 
-// FTPHandler is an implementation of CommandHandler for FTP service
+// FTPHandler is an implementation of ModuleHandler for FTP service
 func FTPHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
 	conn, err := GetFTPConnection(target, port, encryption, timeout, dialer)
 	if err != nil {

@@ -42,7 +42,7 @@ func RedisChecker(target net.IP, port int, timeout time.Duration, dialer *utils.
 	return true, false, nil
 }
 
-// RedisHandler is an implementation of CommandHandler for Redis service
+// RedisHandler is an implementation of ModuleHandler for Redis service
 func RedisHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
 	_, err := GetRedisConnection(target, port, encryption, timeout, dialer, username, password)
 	if err != nil {

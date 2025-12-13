@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func ThreadHandler(handler modules.CommandHandler, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
+func ThreadHandler(handler modules.ModuleHandler, wg *sync.WaitGroup, credentials <-chan *Credential, opts *Options, target *Target) {
 	defer wg.Done()
 
 	for {
@@ -52,19 +52,17 @@ func ThreadHandler(handler modules.CommandHandler, wg *sync.WaitGroup, credentia
 }
 
 func RegisterSuccess(outputFile *os.File, fileMutex *sync.Mutex, command string, target *Target, username, password string) {
-	target.Mutex.Lock()
+	fileMutex.Lock()
 	target.Success = true
-	target.Mutex.Unlock()
 
 	successString := fmt.Sprintf("[%s] %s:%d [%s] [%s]", command, target.IP, target.Port, username, password)
 
 	logger.Successf(successString)
 
 	if outputFile != nil {
-		fileMutex.Lock()
 		_, _ = outputFile.WriteString(successString + "\n")
-		fileMutex.Unlock()
 	}
+	fileMutex.Unlock()
 }
 
 func SendTargets(targets chan *Target, defaultPort int, filename string) {

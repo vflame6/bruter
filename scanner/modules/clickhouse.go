@@ -46,7 +46,7 @@ func ClickHouseChecker(target net.IP, port int, timeout time.Duration, dialer *u
 	return false, false, fmt.Errorf("connection failed or the service is invalid: %w", err)
 }
 
-// ClickHouseHandler is an implementation of CommandHandler for ClickHouse service
+// ClickHouseHandler is an implementation of ModuleHandler for ClickHouse service
 func ClickHouseHandler(target net.IP, port int, encryption bool, timeout time.Duration, dialer *utils.ProxyAwareDialer, username, password string) (bool, bool) {
 	// get connection object
 	conn, err := GetClickHouseConnection(target, port, encryption, username, password, timeout, dialer)
