@@ -20,9 +20,11 @@ type CustomTransport struct {
 }
 
 // RoundTrip implements the http.RoundTripper interface.
+// It is needed to make the HTTP requests look like browsers.
 func (t *CustomTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Set the User-Agent header on the request.
 	req.Header.Set("User-Agent", t.UserAgent)
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	// Use the underlying transport to perform the actual request.
 	return t.Transport.RoundTrip(req)
 }

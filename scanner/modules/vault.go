@@ -3,6 +3,7 @@ package modules
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/vflame6/bruter/utils"
 	"io/ioutil"
@@ -48,6 +49,6 @@ func VaultHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target 
 		return false, nil
 	}
 
-	// any other error
-	return false, nil
+	// any other response
+	return false, errors.New(fmt.Sprintf("invalid server response, maybe the target is not a vault server: %v", err))
 }

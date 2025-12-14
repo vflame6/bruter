@@ -10,6 +10,8 @@
 <a href="https://github.com/vflame6/bruter/releases"><img src="https://img.shields.io/github/release/vflame6/bruter"></a>
 </p>
 
+Created by Maksim Radaev/[@vflame6](https://github.com/vflame6)
+
 ---
 
 `bruter` is a network services bruteforce tool. It supports several services and can be improved to support more.
@@ -19,6 +21,12 @@
 ![bruter](static/bruter_demo.png)
 
 Available modules: `amqp`, `clickhouse`, `etcd`, `ftp`, `mongo`, `postgres`, `redis`, `smpp`, `ssh`, `vault`
+
+Available features:
+
+- Customizable parallelism and per-host threading
+- Stop the bruteforce target on multiple connection errors
+- SOCKS5 proxy support
 
 ## Usage
 
