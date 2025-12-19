@@ -10,7 +10,7 @@ require (
 	github.com/linxGnu/gosmpp v0.3.1
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.17.2
-	go.etcd.io/etcd/client/v3 v3.6.6
+	go.etcd.io/etcd/client/v3 v3.6.7
 	go.mongodb.org/mongo-driver/v2 v2.4.1
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.46.0
@@ -46,8 +46,8 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	go.etcd.io/etcd/api/v3 v3.6.6 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.6.6 // indirect
+	go.etcd.io/etcd/api/v3 v3.6.7 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.6.7 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
