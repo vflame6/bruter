@@ -99,6 +99,12 @@ To Build:
 go build -o bruter main.go
 ```
 
+Build with Docker:
+
+```shell
+docker build -t bruter . 
+```
+
 ## Contributing
 
 Feel free to open an issue if something does not work, or if you have any issues. New ideas to improve the tool are much appreciated.
