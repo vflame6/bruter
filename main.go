@@ -66,14 +66,20 @@ var (
 	etcdCommand = app.Command("etcd", "etcd module")
 	// ftp
 	ftpCommand = app.Command("ftp", "FTP module")
+	// imap
+	imapCommand = app.Command("imap", "IMAP module (port 143 / 993 TLS)")
 	// mongodb
 	mongoCommand = app.Command("mongo", "MongoDB module")
+	// pop3
+	pop3Command = app.Command("pop3", "POP3 module (port 110 / 995 TLS)")
 	// postgres
 	postgresCommand = app.Command("postgres", "PostgreSQL module")
 	// redis
 	redisCommand = app.Command("redis", "Redis module")
 	// smpp
 	smppCommand = app.Command("smpp", "SMPP module")
+	// smtp
+	smtpCommand = app.Command("smtp", "SMTP AUTH module (port 25 / 465 TLS / 587 STARTTLS)")
 	// ssh
 	sshCommand = app.Command("ssh", "SSH module")
 	// vault

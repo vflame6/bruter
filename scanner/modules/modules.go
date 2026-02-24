@@ -14,10 +14,13 @@ var Modules = map[string]Module{
 	"clickhouse": {9000, ClickHouseHandler, "default", ""},
 	"etcd":       {2379, EtcdHandler, "root", "123"},
 	"ftp":        {21, FTPHandler, "anonymous", "anonymous"},
+	"imap":       {143, IMAPHandler, "admin", "admin"},
 	"mongo":      {27017, MongoHandler, "", ""},
+	"pop3":       {110, POP3Handler, "admin", "admin"},
 	"postgres":   {5432, PostgresHandler, "postgres", "postgres"},
 	"redis":      {6379, RedisHandler, "default", ""},
 	"smpp":       {2775, SMPPHandler, "smppclient1", "password"},
+	"smtp":       {25, SMTPHandler, "admin", "admin"},
 	"ssh":        {22, SSHHandler, "root", "123456"},
 	"vault":      {8200, VaultHandler, "admin", "admin"},
 }
