@@ -81,3 +81,23 @@ func TestNewScanner_ZeroRetriesAllowed(t *testing.T) {
 		t.Errorf("NewScanner(retries=0) unexpected error: %v", err)
 	}
 }
+
+func TestNewScanner_IfaceEmptyBackwardCompat(t *testing.T) {
+	// Iface="" should behave exactly as before (no binding) — no error
+	opts := validOptions()
+	opts.Iface = ""
+	_, err := NewScanner(opts)
+	if err != nil {
+		t.Errorf("NewScanner(iface=\"\") unexpected error: %v", err)
+	}
+}
+
+func TestNewScanner_IfaceInvalidFallsBack(t *testing.T) {
+	// An invalid interface name logs a warning but NewScanner still succeeds
+	opts := validOptions()
+	opts.Iface = "nonexistent_iface_xyz"
+	_, err := NewScanner(opts)
+	if err != nil {
+		t.Errorf("NewScanner with invalid iface should fall back gracefully, got: %v", err)
+	}
+}

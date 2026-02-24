@@ -42,6 +42,7 @@ var (
 	// connection flags
 	proxyFlag     = app.Flag("proxy", "SOCKS-proxy address to use for connection in format IP:PORT").Default("").String()
 	proxyAuthFlag = app.Flag("proxy-auth", "Proxy username and password in format username:password").Default("").String()
+	ifaceFlag     = app.Flag("iface", "Network interface to bind outgoing connections to (e.g. eth0)").Short('I').Default("").String()
 
 	// http flags
 	userAgentFlag = app.Flag("user-agent", "User-Agent for HTTP connections").Default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36").String()
@@ -204,6 +205,7 @@ func main() {
 		UserAgent:           *userAgentFlag,
 		OutputFileName:      *outputFlag,
 		Verbose:             *verboseFlag,
+		Iface:               *ifaceFlag,
 	}
 	// try to create scanner
 	s, err := scanner.NewScanner(&options)

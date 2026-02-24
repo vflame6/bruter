@@ -41,7 +41,8 @@ type Options struct {
 	UserAgent           string                  // --user-agent
 	OutputFileName      string
 	OutputFile          *os.File
-	Verbose             bool // --verbose: log every attempt with timestamp
+	Verbose             bool   // --verbose: log every attempt with timestamp
+	Iface               string // --iface: bind outgoing connections to this interface
 }
 
 type Result struct {
@@ -65,8 +66,19 @@ func NewScanner(options *Options) (*Scanner, error) {
 		return nil, errors.New("invalid number for retries")
 	}
 
+	// resolve interface binding IP (nil = OS default)
+	var localAddr net.IP
+	if options.Iface != "" {
+		ip, ifaceErr := utils.GetInterfaceIPv4(options.Iface)
+		if ifaceErr != nil {
+			logger.Infof("interface %q unavailable (%v), using default routing", options.Iface, ifaceErr)
+		} else {
+			localAddr = ip
+		}
+	}
+
 	// custom dialer to handle connections, proxy settings and http clients
-	dialer, err := utils.NewProxyAwareDialer(options.Proxy, options.ProxyAuthentication, options.Timeout, options.UserAgent)
+	dialer, err := utils.NewProxyAwareDialer(options.Proxy, options.ProxyAuthentication, options.Timeout, options.UserAgent, localAddr)
 	if err != nil {
 		return nil, err
 	}

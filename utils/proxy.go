@@ -35,8 +35,16 @@ type ProxyAwareDialer struct {
 	HTTPClient *http.Client
 }
 
-func NewProxyAwareDialer(proxyHost, proxyAuth string, timeout time.Duration, userAgent string) (*ProxyAwareDialer, error) {
+// NewProxyAwareDialer creates a dialer with optional SOCKS5 proxy and optional local address binding.
+// localAddr binds outgoing connections to a specific interface IP (nil = OS default).
+func NewProxyAwareDialer(proxyHost, proxyAuth string, timeout time.Duration, userAgent string, localAddr net.IP) (*ProxyAwareDialer, error) {
 	var dialer proxy.Dialer
+
+	// Build the base net.Dialer, optionally binding to a local interface address
+	baseDialer := &net.Dialer{Timeout: timeout}
+	if localAddr != nil {
+		baseDialer.LocalAddr = &net.TCPAddr{IP: localAddr}
+	}
 
 	if proxyHost != "" {
 		logger.Debugf("trying to set up proxy: %s", proxyHost)
@@ -54,13 +62,13 @@ func NewProxyAwareDialer(proxyHost, proxyAuth string, timeout time.Duration, use
 			}
 		}
 
-		d, err := proxy.SOCKS5("tcp", proxyHost, auth, &net.Dialer{Timeout: timeout})
+		d, err := proxy.SOCKS5("tcp", proxyHost, auth, baseDialer)
 		if err != nil {
 			return nil, err
 		}
 		dialer = d
 	} else {
-		dialer = &net.Dialer{Timeout: timeout}
+		dialer = baseDialer
 	}
 
 	d := &ProxyAwareDialer{
