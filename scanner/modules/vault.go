@@ -38,6 +38,17 @@ func VaultHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 		return false, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	// Set Host header when the original input was a domain (not an IP).
+	// This ensures virtual-hosted services receive the correct Host.
+	if net.ParseIP(target.OriginalTarget) == nil {
+		host := target.OriginalTarget
+		if h, _, err2 := net.SplitHostPort(target.OriginalTarget); err2 == nil {
+			host = h
+		}
+		req.Host = host
+	}
+
 	resp, err := dialer.HTTPClient.Do(req)
 	if err != nil {
 		// connection error
