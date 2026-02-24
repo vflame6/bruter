@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/scanner"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 // AUTHOR of the program
@@ -208,8 +211,12 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	// set up context with signal-based cancellation (Ctrl+C / SIGTERM)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
 	// pass the selected command
-	err = s.Run(command, *targetFlag)
+	err = s.Run(ctx, command, *targetFlag)
 	if err != nil {
 		logger.Fatal(err)
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 // MongoHandler is an implementation of ModuleHandler for MongoDB service
-func MongoHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+func MongoHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
 	addr := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 
 	opts := options.Client().
@@ -41,12 +41,12 @@ func MongoHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target 
 	}
 
 	// Verify connection
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	defer client.Disconnect(ctx)
+	defer client.Disconnect(opCtx)
 
 	// ListDatabaseNames requires authentication
-	_, err = client.ListDatabaseNames(ctx, bson.D{})
+	_, err = client.ListDatabaseNames(opCtx, bson.D{})
 	if err != nil {
 		if classifyMongoError(err) == "auth_error" {
 			// authentication error

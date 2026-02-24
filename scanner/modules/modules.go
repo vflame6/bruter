@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"github.com/vflame6/bruter/utils"
 	"net"
 	"sync"
@@ -49,4 +50,4 @@ type Credential struct {
 // the return values are:
 // IsAuthenticated (bool) to test if authentication is successful
 // ERROR (error) for any errors
-type ModuleHandler func(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error)
+type ModuleHandler func(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error)

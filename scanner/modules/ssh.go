@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"errors"
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/utils"
@@ -16,7 +17,7 @@ var (
 )
 
 // SSHHandler is an implementation of ModuleHandler for SSH service
-func SSHHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+func SSHHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
 	addr := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 
 	supported := ssh.SupportedAlgorithms()
@@ -38,7 +39,7 @@ func SSHHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *T
 	}
 
 	// SSH is always encrypted, so we don't check for target.Encryption here
-	conn, err := dialer.Dial("tcp", addr)
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		// failed to connect
 		return false, err

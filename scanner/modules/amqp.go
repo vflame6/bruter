@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 )
 
 // AMQPHandler is an implementation of ModuleHandler for AMQP service
-func AMQPHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+func AMQPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
 	var conn *amqp.Connection
 	var endpoint string
 	var err error
@@ -23,7 +24,7 @@ func AMQPHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *
 		conn, err = amqp.DialConfig(endpoint, amqp.Config{
 			Dial: func(network, addr string) (net.Conn, error) {
 				tlsConfig := utils.GetTLSConfig()
-				c, err := dialer.Dial(network, addr)
+				c, err := dialer.DialContext(ctx, network, addr)
 				if err != nil {
 					return nil, err
 				}
@@ -33,7 +34,9 @@ func AMQPHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *
 	} else {
 		endpoint = fmt.Sprintf("amqp://%s:%s@%s/", credential.Username, credential.Password, hostPort)
 		conn, err = amqp.DialConfig(endpoint, amqp.Config{
-			Dial: dialer.Dial,
+			Dial: func(network, addr string) (net.Conn, error) {
+				return dialer.DialContext(ctx, network, addr)
+			},
 		})
 	}
 

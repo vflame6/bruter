@@ -22,7 +22,7 @@ var etcdLoggerCfg = zap.Config{
 var etcdLogger, _ = etcdLoggerCfg.Build()
 
 // EtcdHandler is an implementation of ModuleHandler for etcd service
-func EtcdHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+func EtcdHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
 	var client *etcd.Client
 	var err error
 
@@ -56,10 +56,10 @@ func EtcdHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *
 	}
 	defer client.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	authCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	_, err = client.Authenticate(ctx, credential.Username, credential.Password)
+	_, err = client.Authenticate(authCtx, credential.Username, credential.Password)
 	if err != nil {
 		// authentication error
 		return false, nil

@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"context"
 	"errors"
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/scanner/modules"
@@ -97,7 +98,7 @@ func (s *Scanner) Stop() {
 }
 
 // Run method is used to handle parallel execution
-func (s *Scanner) Run(command, targets string) error {
+func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	var count int
 	var err error
 
@@ -128,14 +129,13 @@ func (s *Scanner) Run(command, targets string) error {
 	}
 
 	// send targets to targets channel
-	go SendTargets(s.Targets, c.DefaultPort, targets)
+	go SendTargets(ctx, s.Targets, c.DefaultPort, targets)
 
 	// run parallel threads
 	var parallelWg sync.WaitGroup
 	for i := 0; i < s.Opts.Parallel; i++ {
 		parallelWg.Add(1)
-
-		go s.ParallelHandler(&parallelWg, &c)
+		go s.ParallelHandler(ctx, &parallelWg, &c)
 	}
 
 	// Bug 2 fix: wait for GetResults to finish draining before returning
@@ -146,13 +146,24 @@ func (s *Scanner) Run(command, targets string) error {
 	close(s.Results)
 	resultsWg.Wait()
 
+	if ctx.Err() != nil {
+		logger.Infof("Interrupted")
+	}
+
 	return nil
 }
 
-func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, module *modules.Module) {
+func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, module *modules.Module) {
 	defer wg.Done()
 
 	for {
+		// Exit on cancellation
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		target, ok := <-s.Targets
 		if !ok {
 			break
@@ -166,7 +177,7 @@ func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, module *modules.Module) {
 		}
 		// try with encryption first
 		// Encryption value in target is true by default exactly for that check
-		isSuccess, err := module.Handler(s.Opts.ProxyDialer, s.Opts.Timeout, target, defaultCredential)
+		isSuccess, err := module.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, defaultCredential)
 		if err == nil {
 			// no error indicates successful connection
 			if isSuccess {
@@ -179,7 +190,7 @@ func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, module *modules.Module) {
 			// if failed, try without encryption
 			logger.Debugf("failed to connect to %s:%d with encryption, trying plaintext", target.IP, target.Port)
 			target.Encryption = false
-			isSuccess, err = module.Handler(s.Opts.ProxyDialer, s.Opts.Timeout, target, defaultCredential)
+			isSuccess, err = module.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, defaultCredential)
 			if err == nil {
 				if isSuccess {
 					target.Mutex.Lock()
@@ -219,23 +230,30 @@ func (s *Scanner) ParallelHandler(wg *sync.WaitGroup, module *modules.Module) {
 		// Bug 3 fix: pass a done channel so SendCredentials exits when threads stop early
 		credentials := make(chan *modules.Credential, s.Opts.Threads*BufferMultiplier)
 		done := make(chan struct{})
-		go SendCredentials(credentials, s.Opts.Usernames, s.Opts.Passwords, done)
+		go SendCredentials(ctx, credentials, s.Opts.Usernames, s.Opts.Passwords, done)
 
 		// run threads
 		var threadWg sync.WaitGroup
 		for i := 0; i < s.Opts.Threads; i++ {
 			threadWg.Add(1)
-			go s.ThreadHandler(&threadWg, credentials, module.Handler, target)
+			go s.ThreadHandler(ctx, &threadWg, credentials, module.Handler, target)
 		}
 		threadWg.Wait()
 		close(done) // signal SendCredentials to stop if still running
 	}
 }
 
-func (s *Scanner) ThreadHandler(wg *sync.WaitGroup, credentials <-chan *modules.Credential, handler modules.ModuleHandler, target *modules.Target) {
+func (s *Scanner) ThreadHandler(ctx context.Context, wg *sync.WaitGroup, credentials <-chan *modules.Credential, handler modules.ModuleHandler, target *modules.Target) {
 	defer wg.Done()
 
 	for {
+		// Exit on cancellation
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		credential, ok := <-credentials
 		if !ok {
 			break
@@ -251,7 +269,7 @@ func (s *Scanner) ThreadHandler(wg *sync.WaitGroup, credentials <-chan *modules.
 
 		logger.Debugf("trying %s:%s on %s:%d", credential.Username, credential.Password, target.IP, target.Port)
 		// ignore error here because it is used on initial check with default credentials
-		isSuccess, err := handler(s.Opts.ProxyDialer, s.Opts.Timeout, target, credential)
+		isSuccess, err := handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, credential)
 
 		// verbose: log every attempt with result status
 		if s.Opts.Verbose {

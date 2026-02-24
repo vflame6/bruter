@@ -10,7 +10,7 @@ import (
 )
 
 // RedisHandler is an implementation of ModuleHandler for Redis service
-func RedisHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+func RedisHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
 	addr := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 
 	// Create the Redis client options
@@ -31,10 +31,10 @@ func RedisHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target 
 
 	client := redis.NewClient(options)
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel() // Release resources when main returns
+	pingCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
-	err := client.Ping(ctx).Err()
+	err := client.Ping(pingCtx).Err()
 
 	if err != nil {
 		if redis.IsAuthError(err) {

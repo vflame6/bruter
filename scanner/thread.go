@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"context"
 	"fmt"
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/scanner/modules"
@@ -10,11 +11,11 @@ import (
 	"sync"
 )
 
-func SendTargets(targets chan *modules.Target, defaultPort int, filename string) {
+func SendTargets(ctx context.Context, targets chan *modules.Target, defaultPort int, filename string) {
+	defer close(targets)
 	for line := range utils.ParseFileByLine(filename) {
 		t := strings.TrimSpace(line)
 		if t == "" {
-			// skip empty lines
 			continue
 		}
 		target, err := ParseTarget(line, defaultPort)
@@ -22,22 +23,25 @@ func SendTargets(targets chan *modules.Target, defaultPort int, filename string)
 			logger.Debugf("can't parse line %s as host or host:port, ignoring", line)
 			continue
 		}
-		targets <- target
+		select {
+		case targets <- target:
+		case <-ctx.Done():
+			return
+		}
 	}
-
-	close(targets)
 }
 
 // SendCredentials sends credential pairs to the credentials channel.
-// The done channel is closed by the caller when threads stop early,
-// preventing this goroutine from leaking (Bug 3 fix).
-func SendCredentials(credentials chan *modules.Credential, usernames, passwords string, done <-chan struct{}) {
+// Exits when the done channel is closed (threads stopped early) or ctx is cancelled.
+func SendCredentials(ctx context.Context, credentials chan *modules.Credential, usernames, passwords string, done <-chan struct{}) {
 	defer close(credentials)
 	for linePwd := range utils.ParseFileByLine(passwords) {
 		for lineUsername := range utils.ParseFileByLine(usernames) {
 			select {
 			case credentials <- &modules.Credential{Username: lineUsername, Password: linePwd}:
 			case <-done:
+				return
+			case <-ctx.Done():
 				return
 			}
 		}

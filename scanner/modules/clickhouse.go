@@ -13,7 +13,7 @@ import (
 var ClickHouseErrAuth = errors.New("authentication error")
 
 // ClickHouseHandler is an implementation of ModuleHandler for ClickHouse service
-func ClickHouseHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+func ClickHouseHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
 	addr := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 
 	opts := &clickhouse.Options{
@@ -42,7 +42,7 @@ func ClickHouseHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, ta
 	defer conn.Close()
 
 	// test connection and authentication
-	err = conn.Ping(context.Background())
+	err = conn.Ping(ctx)
 	if err != nil {
 		errType := classifyClickHouseError(err)
 		if errors.Is(errType, ClickHouseErrAuth) {

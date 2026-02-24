@@ -2,19 +2,21 @@ package modules
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/vflame6/bruter/utils"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 )
 
 // VaultHandler is an implementation of ModuleHandler for HashiCorp Vault service
-func VaultHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+func VaultHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
 	reqJson, err := json.Marshal(map[string]string{
 		"password": credential.Password,
 	})
@@ -31,7 +33,12 @@ func VaultHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target 
 		url = fmt.Sprintf("http://%s/v1/auth/userpass/login/%s", hostPort, credential.Username)
 	}
 
-	resp, err := dialer.HTTPClient.Post(url, "application/json", reqData)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, reqData)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := dialer.HTTPClient.Do(req)
 	if err != nil {
 		// connection error
 		return false, err
