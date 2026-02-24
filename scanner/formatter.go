@@ -44,5 +44,5 @@ func ParseTarget(target string, defaultPort int) (*modules.Target, error) {
 		}
 	}
 
-	return &modules.Target{IP: ip, Port: port, Encryption: true, Success: false, Retries: 0}, nil
+	return &modules.Target{IP: ip, Port: port, OriginalTarget: target, Encryption: true, Success: false, Retries: 0}, nil
 }

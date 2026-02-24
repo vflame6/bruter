@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"github.com/vflame6/bruter/utils"
 	"io/ioutil"
+	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,11 +23,12 @@ func VaultHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target 
 	}
 	reqData := bytes.NewBuffer(reqJson)
 
+	hostPort := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 	var url string
 	if target.Encryption {
-		url = fmt.Sprintf("https://%s:%d/v1/auth/userpass/login/%s", target.IP, target.Port, credential.Username)
+		url = fmt.Sprintf("https://%s/v1/auth/userpass/login/%s", hostPort, credential.Username)
 	} else {
-		url = fmt.Sprintf("http://%s:%d/v1/auth/userpass/login/%s", target.IP, target.Port, credential.Username)
+		url = fmt.Sprintf("http://%s/v1/auth/userpass/login/%s", hostPort, credential.Username)
 	}
 
 	resp, err := dialer.HTTPClient.Post(url, "application/json", reqData)

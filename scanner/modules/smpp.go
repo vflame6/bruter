@@ -9,6 +9,7 @@ import (
 	"github.com/linxGnu/gosmpp/pdu"
 	"github.com/vflame6/bruter/utils"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,7 +19,7 @@ var SMPPErrAuth = errors.New("authentication error")
 
 // SMPPHandler is an implementation of ModuleHandler for SMPP service
 func SMPPHandler(d *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
-	addr := fmt.Sprintf("%s:%d", target.IP.String(), target.Port)
+	addr := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 
 	// Create authentication config
 	auth := gosmpp.Auth{

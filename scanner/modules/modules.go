@@ -31,12 +31,13 @@ type Module struct {
 // Target is a struct for each bruteforce target
 // by default, Encryption is set to true to try to connect with encryption at default check
 type Target struct {
-	IP         net.IP
-	Port       int
-	Encryption bool
-	Success    bool
-	Retries    int
-	Mutex      sync.Mutex
+	IP             net.IP
+	Port           int
+	OriginalTarget string // raw input string before DNS resolution (e.g. "hostname:8080" or "::1")
+	Encryption     bool
+	Success        bool
+	Retries        int
+	Mutex          sync.Mutex
 }
 
 type Credential struct {

@@ -1,9 +1,10 @@
 package modules
 
 import (
-	"fmt"
 	"github.com/jlaffaye/ftp"
 	"github.com/vflame6/bruter/utils"
+	"net"
+	"strconv"
 	"time"
 )
 
@@ -12,7 +13,7 @@ func FTPHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *T
 	var conn *ftp.ServerConn
 	var err error
 
-	connString := fmt.Sprintf("%s:%d", target.IP, target.Port)
+	connString := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 
 	if target.Encryption {
 		conn, err = ftp.Dial(

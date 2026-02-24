@@ -7,6 +7,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/vflame6/bruter/utils"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -16,8 +17,9 @@ func AMQPHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *
 	var endpoint string
 	var err error
 
+	hostPort := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 	if target.Encryption {
-		endpoint = fmt.Sprintf("amqps://%s:%s@%s:%d/", credential.Username, credential.Password, target.IP.String(), target.Port)
+		endpoint = fmt.Sprintf("amqps://%s:%s@%s/", credential.Username, credential.Password, hostPort)
 		conn, err = amqp.DialConfig(endpoint, amqp.Config{
 			Dial: func(network, addr string) (net.Conn, error) {
 				tlsConfig := utils.GetTLSConfig()
@@ -29,7 +31,7 @@ func AMQPHandler(dialer *utils.ProxyAwareDialer, timeout time.Duration, target *
 			},
 		})
 	} else {
-		endpoint = fmt.Sprintf("amqp://%s:%s@%s:%d/", credential.Username, credential.Password, target.IP.String(), target.Port)
+		endpoint = fmt.Sprintf("amqp://%s:%s@%s/", credential.Username, credential.Password, hostPort)
 		conn, err = amqp.DialConfig(endpoint, amqp.Config{
 			Dial: dialer.Dial,
 		})
