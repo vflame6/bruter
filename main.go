@@ -66,10 +66,16 @@ var (
 	etcdCommand = app.Command("etcd", "etcd module")
 	// ftp
 	ftpCommand = app.Command("ftp", "FTP module")
+	// http-basic
+	httpBasicCommand = app.Command("http-basic", "HTTP Basic Auth module (port 80 / 443 TLS)")
 	// imap
 	imapCommand = app.Command("imap", "IMAP module (port 143 / 993 TLS)")
 	// mongodb
 	mongoCommand = app.Command("mongo", "MongoDB module")
+	// mssql
+	mssqlCommand = app.Command("mssql", "Microsoft SQL Server module (port 1433)")
+	// mysql
+	mysqlCommand = app.Command("mysql", "MySQL module (port 3306)")
 	// pop3
 	pop3Command = app.Command("pop3", "POP3 module (port 110 / 995 TLS)")
 	// postgres
