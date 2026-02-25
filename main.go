@@ -86,6 +86,7 @@ var (
 	// redis
 	redisCommand = app.Command("redis", "Redis module")
 	// smpp
+	smbCommand  = app.Command("smb", "SMB module (port 445)")
 	smppCommand = app.Command("smpp", "SMPP module")
 	// smtp
 	smtpCommand = app.Command("smtp", "SMTP AUTH module (port 25 / 465 TLS / 587 STARTTLS)")
