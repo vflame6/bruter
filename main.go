@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/alecthomas/kingpin/v2"
-	"github.com/vflame6/bruter/logger"
-	"github.com/vflame6/bruter/scanner"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/alecthomas/kingpin/v2"
+	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/scanner"
 )
 
 // AUTHOR of the program
@@ -25,11 +26,14 @@ var (
 	app = kingpin.New("bruter", "bruter is a network services bruteforce tool.")
 
 	// targets
-	targetFlag = app.Flag("target", "Target host or file with targets. Format host or host:port, one per line").Short('t').Required().String()
+	targetFlag = app.Flag("target", "Target host or file with targets. Format host or host:port, one per line").Short('t').String()
+
+	// nmap input
+	nmapFlag = app.Flag("nmap", "Nmap output file (GNMAP or XML, auto-detected). Runs matching modules automatically.").Short('n').String()
 
 	// wordlist flags
-	usernameFlag = app.Flag("username", "Username or file with usernames").Short('u').Required().String()
-	passwordFlag = app.Flag("password", "Password or file with passwords").Short('p').Required().String()
+	usernameFlag = app.Flag("username", "Username or file with usernames").Short('u').String()
+	passwordFlag = app.Flag("password", "Password or file with passwords").Short('p').String()
 
 	// optimization flags
 	parallelFlag      = app.Flag("concurrent-hosts", "Number of targets in parallel").Short('C').Default("32").Int()
@@ -187,6 +191,11 @@ func ParseArgs() string {
 			}
 		}
 
+		// In nmap mode, no subcommand is needed
+		if *nmapFlag != "" {
+			return ""
+		}
+
 		// No command and no --version/--help, show usage
 		app.Usage(os.Args[1:])
 		os.Exit(0)
@@ -206,6 +215,21 @@ func main() {
 	// parse program arguments
 	command := ParseArgs()
 
+	// nmap mode: --nmap flag takes precedence
+	nmapMode := *nmapFlag != ""
+
+	// Validate: in normal mode, --target is required
+	if !nmapMode && *targetFlag == "" {
+		fmt.Fprintln(os.Stderr, "error: required flag --target not provided, try --help")
+		os.Exit(1)
+	}
+
+	// Validate: credentials are required in both modes
+	if *usernameFlag == "" || *passwordFlag == "" {
+		fmt.Fprintln(os.Stderr, "error: required flags --username and --password not provided, try --help")
+		os.Exit(1)
+	}
+
 	// instantiate logger
 	if err := logger.Init(*quietFlag, *debugFlag); err != nil {
 		fmt.Printf("Failed to initialize logger: %v\n", err)
@@ -221,7 +245,7 @@ func main() {
 	}
 
 	// show which module is executed
-	if !*quietFlag {
+	if !nmapMode && !*quietFlag {
 		logger.Infof("executing %s module", command)
 	}
 
@@ -254,16 +278,24 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	// pass the selected command
-	err = s.Run(ctx, command, *targetFlag)
-	if err != nil {
-		logger.Fatal(err)
-	}
+	if nmapMode {
+		// nmap mode: parse nmap output and run matching modules
+		err = s.RunNmapWithResults(ctx, *nmapFlag)
+		if err != nil {
+			logger.Fatal(err)
+		}
+	} else {
+		// normal mode: run selected module against targets
+		err = s.Run(ctx, command, *targetFlag)
+		if err != nil {
+			logger.Fatal(err)
+		}
 
-	// finish the execution
-	s.Stop()
-	// show which module is done its execution
-	if !*quietFlag {
-		logger.Infof("finished execution of %s module", command)
+		// finish the execution
+		s.Stop()
+		// show which module is done its execution
+		if !*quietFlag {
+			logger.Infof("finished execution of %s module", command)
+		}
 	}
 }
