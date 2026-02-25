@@ -70,6 +70,9 @@ var (
 	httpBasicCommand = app.Command("http-basic", "HTTP Basic Auth module (port 80 / 443 TLS)")
 	// imap
 	imapCommand = app.Command("imap", "IMAP module (port 143 / 993 TLS)")
+	// cisco / telnet
+	ciscoCommand  = app.Command("cisco", "Cisco IOS Telnet module (port 23)")
+	telnetCommand = app.Command("telnet", "Telnet module (port 23 / TLS)")
 	// ldap
 	ldapCommand  = app.Command("ldap", "LDAP module (port 389 / 636 TLS)")
 	ldapsCommand = app.Command("ldaps", "LDAPS module (port 636 TLS)")

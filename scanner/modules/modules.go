@@ -11,6 +11,7 @@ import (
 // Modules stores all available services for bruteforce
 var Modules = map[string]Module{
 	"amqp":       {5672, AMQPHandler, "guest", "guest"},
+	"cisco":      {23, CiscoHandler, "cisco", "cisco"},
 	"clickhouse": {9000, ClickHouseHandler, "default", ""},
 	"etcd":       {2379, EtcdHandler, "root", "123"},
 	"ftp":        {21, FTPHandler, "anonymous", "anonymous"},
@@ -28,6 +29,7 @@ var Modules = map[string]Module{
 	"smb":        {445, SMBHandler, "Administrator", ""},
 	"smtp":       {25, SMTPHandler, "admin", "admin"},
 	"ssh":        {22, SSHHandler, "root", "123456"},
+	"telnet":     {23, TelnetHandler, "admin", "admin"},
 	"vault":      {8200, VaultHandler, "admin", "admin"},
 }
 
