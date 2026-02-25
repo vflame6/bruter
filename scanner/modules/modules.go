@@ -27,6 +27,7 @@ var Modules = map[string]Module{
 	"pop3":         {110, POP3Handler, "admin", "admin"},
 	"postgres":     {5432, PostgresHandler, "postgres", "postgres"},
 	"redis":        {6379, RedisHandler, "default", ""},
+	"rtsp":         {554, RTSPHandler, "admin", "admin"},
 	"smpp":         {2775, SMPPHandler, "smppclient1", "password"},
 	"smb":          {445, SMBHandler, "Administrator", ""},
 	"socks5":       {1080, SOCKS5Handler, "admin", "admin"},
