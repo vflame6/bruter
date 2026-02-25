@@ -206,45 +206,13 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 			break
 		}
 
-		// check with checker
-		logger.Debugf("trying default credentials on %s:%d", target.IP, target.Port)
-		defaultCredential := &modules.Credential{
-			Username: module.DefaultUsername,
-			Password: module.DefaultPassword,
-		}
-		// try with encryption first
-		// Encryption value in target is true by default exactly for that check
-		isSuccess, err := module.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, defaultCredential)
-		if err == nil {
-			// no error indicates successful connection
-			if isSuccess {
-				// Bug 1 fix: guard target.Success writes with the mutex
-				target.Mutex.Lock()
-				target.Success = true
-				target.Mutex.Unlock()
-			}
-		} else {
-			// if failed, try without encryption
-			logger.Debugf("failed to connect to %s:%d with encryption, trying plaintext", target.IP, target.Port)
-			target.Encryption = false
-			isSuccess, err = module.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, defaultCredential)
-			if err == nil {
-				if isSuccess {
-					target.Mutex.Lock()
-					target.Success = true
-					target.Mutex.Unlock()
-				}
-			} else {
-				logger.Debugf("failed to connect to %s:%d: %v", target.IP, target.Port, err)
-				continue
-			}
+		// probe target: check reachability, TLS fallback, and default credentials
+		reachable, defaultCredsWork := s.probe(ctx, module, target)
+		if !reachable {
+			continue
 		}
 
-		// if succeeded, send to results channel
-		target.Mutex.Lock()
-		defaultSuccess := target.Success
-		target.Mutex.Unlock()
-		if defaultSuccess {
+		if defaultCredsWork {
 			s.Results <- &Result{
 				Command:        s.Opts.Command,
 				IP:             target.IP,
@@ -257,7 +225,6 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 			if s.Opts.GlobalStop {
 				s.globalDone.Store(true)
 			}
-			// skip target if default credentials are found and --stop-on-success is enabled
 			if s.Opts.StopOnSuccess || s.Opts.GlobalStop {
 				continue
 			}
@@ -283,6 +250,44 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 		threadWg.Wait()
 		close(done) // signal SendCredentials to stop if still running
 	}
+}
+
+// probe checks if a target is reachable and whether default credentials work.
+// It tries encrypted connection first, falling back to plaintext.
+// Returns (reachable, defaultCredsWork).
+func (s *Scanner) probe(ctx context.Context, module *modules.Module, target *modules.Target) (bool, bool) {
+	logger.Debugf("trying default credentials on %s:%d", target.IP, target.Port)
+	cred := &modules.Credential{
+		Username: module.DefaultUsername,
+		Password: module.DefaultPassword,
+	}
+
+	// try with encryption first (target.Encryption defaults to true)
+	isSuccess, err := module.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, cred)
+	if err == nil {
+		if isSuccess {
+			target.Mutex.Lock()
+			target.Success = true
+			target.Mutex.Unlock()
+		}
+		return true, isSuccess
+	}
+
+	// fallback to plaintext
+	logger.Debugf("failed to connect to %s:%d with encryption, trying plaintext", target.IP, target.Port)
+	target.Encryption = false
+	isSuccess, err = module.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, cred)
+	if err == nil {
+		if isSuccess {
+			target.Mutex.Lock()
+			target.Success = true
+			target.Mutex.Unlock()
+		}
+		return true, isSuccess
+	}
+
+	logger.Debugf("failed to connect to %s:%d: %v", target.IP, target.Port, err)
+	return false, false
 }
 
 func (s *Scanner) ThreadHandler(ctx context.Context, wg *sync.WaitGroup, credentials <-chan *modules.Credential, handler modules.ModuleHandler, target *modules.Target) {
