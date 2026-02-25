@@ -29,6 +29,8 @@ type Scanner struct {
 type Options struct {
 	Usernames           string
 	Passwords           string
+	UsernameList        []string // pre-loaded usernames (populated in Run)
+	PasswordList        []string // pre-loaded passwords (populated in Run)
 	Command             string
 	Timeout             time.Duration
 	Parallel            int
@@ -149,6 +151,10 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 		s.Opts.Parallel = count
 	}
 
+	// pre-load credentials into memory once
+	s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
+	s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
+
 	// send targets to targets channel
 	go SendTargets(ctx, s.Targets, c.DefaultPort, targets)
 
@@ -266,7 +272,7 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 		// Bug 3 fix: pass a done channel so SendCredentials exits when threads stop early
 		credentials := make(chan *modules.Credential, s.Opts.Threads*BufferMultiplier)
 		done := make(chan struct{})
-		go SendCredentials(ctx, credentials, s.Opts.Usernames, s.Opts.Passwords, done)
+		go SendCredentials(ctx, credentials, s.Opts.UsernameList, s.Opts.PasswordList, done)
 
 		// run threads
 		var threadWg sync.WaitGroup

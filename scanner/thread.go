@@ -35,12 +35,12 @@ func SendTargets(ctx context.Context, targets chan *modules.Target, defaultPort 
 
 // SendCredentials sends credential pairs to the credentials channel.
 // Exits when the done channel is closed (threads stopped early) or ctx is cancelled.
-func SendCredentials(ctx context.Context, credentials chan *modules.Credential, usernames, passwords string, done <-chan struct{}) {
+func SendCredentials(ctx context.Context, credentials chan *modules.Credential, usernames, passwords []string, done <-chan struct{}) {
 	defer close(credentials)
-	for linePwd := range utils.ParseFileByLine(passwords) {
-		for lineUsername := range utils.ParseFileByLine(usernames) {
+	for _, pwd := range passwords {
+		for _, user := range usernames {
 			select {
-			case credentials <- &modules.Credential{Username: lineUsername, Password: linePwd}:
+			case credentials <- &modules.Credential{Username: user, Password: pwd}:
 			case <-done:
 				return
 			case <-ctx.Done():

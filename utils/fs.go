@@ -90,3 +90,29 @@ func ParseFileByLine(filename string) <-chan string {
 
 	return out
 }
+
+// LoadLines reads all non-empty lines from a file into a slice.
+// If filename is not a real file, it returns a single-element slice.
+func LoadLines(filename string) []string {
+	if !IsFileExists(filename) {
+		return []string{filename}
+	}
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		logger.Debugf("error while reading file %s: %v", filename, err)
+	}
+	return lines
+}
