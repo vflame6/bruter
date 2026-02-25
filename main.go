@@ -89,8 +89,11 @@ var (
 	// postgres
 	postgresCommand = app.Command("postgres", "PostgreSQL module")
 	// redis
-	redisCommand = app.Command("redis", "Redis module")
-	rtspCommand  = app.Command("rtsp", "RTSP Basic Auth module (port 554)")
+	redisCommand  = app.Command("redis", "Redis module")
+	rexecCommand  = app.Command("rexec", "BSD rexec module (port 512)")
+	rloginCommand = app.Command("rlogin", "BSD rlogin module (port 513)")
+	rshCommand    = app.Command("rsh", "BSD rsh module (port 514)")
+	rtspCommand   = app.Command("rtsp", "RTSP Basic Auth module (port 554)")
 	// smpp
 	smbCommand    = app.Command("smb", "SMB module (port 445)")
 	socks5Command = app.Command("socks5", "SOCKS5 username/password authentication module (port 1080)")
