@@ -14,6 +14,7 @@ var Modules = map[string]Module{
 	"asterisk":     {5038, AsteriskHandler, "admin", "admin"},
 	"cisco":        {23, CiscoHandler, "cisco", "cisco"},
 	"cisco-enable": {23, CiscoEnableHandler, "cisco", "cisco"},
+	"cobaltstrike": {50050, CobaltStrikeHandler, "", "password"},
 	"clickhouse":   {9000, ClickHouseHandler, "default", ""},
 	"etcd":         {2379, EtcdHandler, "root", "123"},
 	"ftp":          {21, FTPHandler, "anonymous", "anonymous"},

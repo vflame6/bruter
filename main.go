@@ -73,9 +73,10 @@ var (
 	imapCommand = app.Command("imap", "IMAP module (port 143 / 993 TLS)")
 	ircCommand  = app.Command("irc", "IRC server password module (port 6667)")
 	// cisco / telnet
-	ciscoCommand       = app.Command("cisco", "Cisco IOS Telnet module (port 23)")
-	ciscoEnableCommand = app.Command("cisco-enable", "Cisco IOS enable-mode password module (port 23)")
-	telnetCommand      = app.Command("telnet", "Telnet module (port 23 / TLS)")
+	ciscoCommand        = app.Command("cisco", "Cisco IOS Telnet module (port 23)")
+	ciscoEnableCommand  = app.Command("cisco-enable", "Cisco IOS enable-mode password module (port 23)")
+	cobaltStrikeCommand = app.Command("cobaltstrike", "Cobalt Strike team server module (port 50050)")
+	telnetCommand       = app.Command("telnet", "Telnet module (port 23 / TLS)")
 	// ldap
 	ldapCommand  = app.Command("ldap", "LDAP module (port 389 / 636 TLS)")
 	ldapsCommand = app.Command("ldaps", "LDAPS module (port 636 TLS)")
