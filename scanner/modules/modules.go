@@ -29,6 +29,7 @@ var Modules = map[string]Module{
 	"redis":        {6379, RedisHandler, "default", ""},
 	"smpp":         {2775, SMPPHandler, "smppclient1", "password"},
 	"smb":          {445, SMBHandler, "Administrator", ""},
+	"socks5":       {1080, SOCKS5Handler, "admin", "admin"},
 	"snmp":         {161, SNMPHandler, "", "public"},
 	"smtp":         {25, SMTPHandler, "admin", "admin"},
 	"ssh":          {22, SSHHandler, "root", "123456"},

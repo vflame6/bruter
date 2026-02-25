@@ -91,9 +91,10 @@ var (
 	// redis
 	redisCommand = app.Command("redis", "Redis module")
 	// smpp
-	smbCommand  = app.Command("smb", "SMB module (port 445)")
-	snmpCommand = app.Command("snmp", "SNMP v1/v2c community string module (port 161 UDP)")
-	smppCommand = app.Command("smpp", "SMPP module")
+	smbCommand    = app.Command("smb", "SMB module (port 445)")
+	socks5Command = app.Command("socks5", "SOCKS5 username/password authentication module (port 1080)")
+	snmpCommand   = app.Command("snmp", "SNMP v1/v2c community string module (port 161 UDP)")
+	smppCommand   = app.Command("smpp", "SMPP module")
 	// smtp
 	smtpCommand = app.Command("smtp", "SMTP AUTH module (port 25 / 465 TLS / 587 STARTTLS)")
 	// ssh
