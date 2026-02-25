@@ -27,9 +27,11 @@ func TestCobaltStrikeHandler_DialFailure(t *testing.T) {
 	}
 }
 
-// TestCobaltStrikeHandler_ImmediateClose verifies that a server that closes
-// the connection immediately (wrong password) returns (false, nil).
-func TestCobaltStrikeHandler_ImmediateClose(t *testing.T) {
+// TestCobaltStrikeHandler_WrongPassword simulates a server that closes the
+// connection after receiving the packet — meaning wrong password.
+// Since the handler requires TLS, a plain TCP listener causes the TLS handshake
+// to fail (returned as err from DialTLSContext), which is the correct failure path.
+func TestCobaltStrikeHandler_WrongPassword(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -41,17 +43,13 @@ func TestCobaltStrikeHandler_ImmediateClose(t *testing.T) {
 		if err != nil {
 			return
 		}
-		// Read and immediately close (simulates wrong password).
-		buf := make([]byte, 64)
-		_, _ = conn.Read(buf)
+		// Read the 261-byte packet and close — simulates wrong password.
+		buf := make([]byte, 261)
+		_, _ = readFull(conn, buf)
 		_ = conn.Close()
 	}()
 
 	addr := ln.Addr().(*net.TCPAddr)
-	// CobaltStrike requires TLS — but we can test the logic with a plain TCP
-	// mock that simulates the "connection closed = wrong password" path.
-	// Since the TLS handshake will fail against a plain TCP server, we expect
-	// either a TLS error (returned as err from DialTLSContext) or (false, nil).
 	target := &Target{
 		IP:             net.ParseIP("127.0.0.1"),
 		Port:           addr.Port,
@@ -59,10 +57,10 @@ func TestCobaltStrikeHandler_ImmediateClose(t *testing.T) {
 		Encryption:     true,
 	}
 	ok, _ := CobaltStrikeHandler(context.Background(), newTestDialer(t), 2*time.Second,
-		target, &Credential{Username: "", Password: "password"})
+		target, &Credential{Username: "", Password: "wrongpassword"})
 
-	// Key invariant: auth never returns ok=true against a plain TCP listener.
+	// Key invariant: never returns ok=true against a plain TCP listener.
 	if ok {
-		t.Error("ok should be false when server closes connection")
+		t.Error("ok should be false when server closes connection (wrong password)")
 	}
 }

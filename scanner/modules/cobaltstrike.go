@@ -2,8 +2,6 @@ package modules
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/binary"
 	"io"
 	"net"
 	"strconv"
@@ -13,11 +11,17 @@ import (
 )
 
 // CobaltStrikeHandler is an implementation of ModuleHandler for Cobalt Strike team server
-// authentication (port 50050). Connects via TLS and sends SHA-256(password) prefixed with
-// a 4-byte big-endian length. If the server closes the connection, the password is wrong;
-// if data is returned, authentication succeeded.
+// authentication (port 50050). Protocol sourced from thc-hydra hydra-cobaltstrike.c.
 //
-// credential.Username is unused — CS uses only a shared password/secret.
+// Packet layout (261 bytes):
+//
+//	[0..3]   = 0x00 0x00 0xBE 0xEF  (magic header)
+//	[4]      = len(password) as uint8
+//	[5..260] = password bytes, zero-padded to 256 bytes
+//
+// Server responds with 4 bytes: [0x00, 0x00, 0xCA, 0xFE] = success, anything else = fail.
+//
+// credential.Username is unused — CS uses only a shared team password.
 func CobaltStrikeHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
 	addr := net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port))
 
@@ -32,20 +36,34 @@ func CobaltStrikeHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, ti
 
 	_ = conn.SetDeadline(time.Now().Add(timeout))
 
-	// Payload: 4-byte big-endian length (32) + 32-byte SHA-256 hash of the password.
-	hash := sha256.Sum256([]byte(credential.Password))
-	var buf [36]byte
-	binary.BigEndian.PutUint32(buf[:4], 32)
-	copy(buf[4:], hash[:])
+	// Build 261-byte packet.
+	pass := []byte(credential.Password)
+	if len(pass) > 256 {
+		pass = pass[:256]
+	}
+
+	var buf [261]byte
+	buf[0] = 0x00
+	buf[1] = 0x00
+	buf[2] = 0xBE
+	buf[3] = 0xEF
+	buf[4] = byte(len(pass)) //nolint:gosec // max 256, fits in uint8
+	copy(buf[5:], pass)
+	// Remaining bytes (buf[5+len(pass):]) are already zero from var declaration.
 
 	if _, err = conn.Write(buf[:]); err != nil {
 		return false, err
 	}
 
-	// If server closes before sending 4 bytes → wrong password (or not a CS team server).
+	// Read 4-byte server response.
 	var resp [4]byte
 	if _, err = io.ReadFull(conn, resp[:]); err != nil {
-		return false, nil //nolint:nilerr // closed connection = auth failure, not an error
+		return false, nil //nolint:nilerr // closed/short read = wrong password
 	}
-	return true, nil
+
+	// [0x00, 0x00, 0xCA, 0xFE] = success
+	if resp[0] == 0x00 && resp[1] == 0x00 && resp[2] == 0xCA && resp[3] == 0xFE {
+		return true, nil
+	}
+	return false, nil
 }
