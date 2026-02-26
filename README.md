@@ -21,7 +21,7 @@ Created by Maksim Radaev/[@vflame6](https://github.com/vflame6)
 
 ![bruter](static/bruter_demo.png)
 
-Available modules: `amqp` ,`asterisk` ,`clickhouse` ,`etcd` ,`ftp` ,`http-basic` ,`imap` ,`irc` ,`cisco` ,`cisco-enable` ,`cobaltstrike` ,`teamspeak` ,`telnet` ,`ldap` ,`ldaps` ,`mongo` ,`mssql` ,`mysql` ,`pop3` ,`postgres` ,`redis` ,`rexec` ,`rlogin` ,`rsh` ,`rtsp` ,`smb` ,`socks5` ,`snmp` ,`smpp` ,`smtp` ,`ssh` ,`sshkey` ,`vault` ,`vnc` ,`xmpp`
+Available modules: `amqp`, `asterisk`, `clickhouse`, `etcd`, `ftp`, `http-basic`, `imap`, `irc`, `cisco`, `cisco-enable`, `cobaltstrike`, `teamspeak`, `telnet`, `ldap`, `ldaps`, `mongo`, `mssql`, `mysql`, `pop3`, `postgres`, `redis`, `rexec`, `rlogin`, `rsh`, `rtsp`, `smb`, `socks5`, `snmp`, `smpp`, `smtp`, `ssh`, `sshkey`, `vault`, `vnc`, `xmpp`
 
 Available features:
 
