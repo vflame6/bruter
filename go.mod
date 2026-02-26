@@ -13,7 +13,6 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/linxGnu/gosmpp v0.3.1
 	github.com/microsoft/go-mssqldb v1.9.6
-	github.com/mitchellh/go-vnc v0.0.0-20150629162542-723ed9867aed
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/xmppo/go-xmpp v0.3.2
