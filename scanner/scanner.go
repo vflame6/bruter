@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/scanner/modules"
 	"github.com/vflame6/bruter/utils"
@@ -96,6 +97,11 @@ func NewScanner(options *Options) (*Scanner, error) {
 
 	// if an --output option is used, create a file
 	if options.OutputFileName != "" {
+		if _, err := os.Stat(options.OutputFileName); err == nil {
+			return nil, fmt.Errorf("output file %q already exists. Use a different filename to avoid data loss", options.OutputFileName)
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("cannot check output file %q: %w", options.OutputFileName, err)
+		}
 		var err error
 		outputFile, err = os.Create(options.OutputFileName)
 		if err != nil {
