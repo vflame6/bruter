@@ -34,3 +34,4 @@ go.work.sum
 tmp/
 .DS_Store
 docs/
+bruter

@@ -29,7 +29,7 @@ var (
 	targetFlag = app.Flag("target", "Target host or file with targets. Format host or host:port, one per line").Short('t').String()
 
 	// scan input (nmap, nessus, nexpose — auto-detected)
-	nmapFlag = app.Flag("nmap", "Scan output file (nmap GNMAP/XML, Nessus .nessus, Nexpose XML — auto-detected). Runs matching modules automatically.").Short('n').String()
+	nmapFlag = app.Flag("nmap", "Scan output file (nmap GNMAP/XML, Nessus .nessus, Nexpose XML — auto-detected). Use with 'all' command.").Short('n').String()
 
 	// wordlist flags
 	usernameFlag = app.Flag("username", "Username or file with usernames").Short('u').String()
@@ -65,6 +65,7 @@ var (
 	// sort alphabetically
 
 	// amqp
+	allCommand      = app.Command("all", "Auto-detect modules from scan file (requires -n)")
 	amqpCommand     = app.Command("amqp", "AMQP module")
 	asteriskCommand = app.Command("asterisk", "Asterisk Manager Interface module (port 5038)")
 	// clickhouse
@@ -193,11 +194,6 @@ func ParseArgs() string {
 			}
 		}
 
-		// In nmap mode, no subcommand is needed
-		if *nmapFlag != "" {
-			return ""
-		}
-
 		// No command and no --version/--help, show usage
 		app.Usage(os.Args[1:])
 		os.Exit(0)
@@ -217,8 +213,12 @@ func main() {
 	// parse program arguments
 	command := ParseArgs()
 
-	// nmap mode: --nmap flag takes precedence
-	nmapMode := *nmapFlag != ""
+	// all command requires -n flag
+	nmapMode := command == "all"
+	if nmapMode && *nmapFlag == "" {
+		fmt.Fprintln(os.Stderr, "error: 'all' command requires --nmap/-n scan file, try --help")
+		os.Exit(1)
+	}
 
 	// Validate: in normal mode, --target is required
 	if !nmapMode && *targetFlag == "" {

@@ -73,11 +73,24 @@ func ParseGNMAP(path string) ([]Target, error) {
 			}
 
 			service := strings.TrimSpace(matches[4])
+
+			service = strings.ToLower(service)
 			if service == "" || service == "unknown" {
 				continue
 			}
 
-			mod, ok := MapService(strings.ToLower(service))
+			// Handle GNMAP "ssl|<service>" notation (e.g. "ssl|http")
+			if strings.HasPrefix(service, "ssl|") {
+				base := strings.TrimPrefix(service, "ssl|")
+				// Try SSL variant first (e.g. "https"), then base
+				if mod, ok := MapService(base + "s"); ok {
+					targets = append(targets, Target{Host: host, Port: port, Service: mod})
+					continue
+				}
+				service = base
+			}
+
+			mod, ok := MapService(service)
 			if !ok {
 				continue
 			}
