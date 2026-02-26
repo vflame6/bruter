@@ -32,10 +32,10 @@ type Scanner struct {
 type Options struct {
 	Usernames           string
 	Passwords           string
-	Defaults            bool     // --defaults: use built-in wordlists
-	Combo               string   // --combo: file with user:pass pairs
-	UsernameList        []string // pre-loaded usernames (populated in Run)
-	PasswordList        []string // pre-loaded passwords (populated in Run)
+	Defaults            bool                 // --defaults: use built-in wordlists
+	Combo               string               // --combo: file with user:pass pairs
+	UsernameList        []string             // pre-loaded usernames (populated in Run)
+	PasswordList        []string             // pre-loaded passwords (populated in Run)
 	ComboList           []modules.Credential // pre-loaded combo pairs (populated in Run)
 	Command             string
 	Timeout             time.Duration
@@ -91,7 +91,7 @@ func (s *Scanner) printConfig(command, targets string, targetCount int) {
 		fmt.Printf(" [+] Combo file:       %s (%d)\n", o.Combo, comboCount)
 	}
 	fmt.Printf(" [+] Credential pairs: %d\n", totalCreds)
-	fmt.Printf(" [+] Threads:          %d\n", o.Threads)
+	fmt.Printf(" [+] Threads per host:          %d\n", o.Threads)
 	fmt.Printf(" [+] Parallel hosts:   %d\n", o.Parallel)
 	fmt.Printf(" [+] Timeout:          %s\n", o.Timeout)
 	if o.Delay > 0 {
@@ -110,7 +110,7 @@ func (s *Scanner) printConfig(command, targets string, targetCount int) {
 		fmt.Printf(" [+] Stop on success:  yes\n")
 	}
 	if o.GlobalStop {
-		fmt.Printf(" [+] Global stop:      yes\n")
+		fmt.Printf(" [+] Global stop on success:      yes\n")
 	}
 	if o.Verbose {
 		fmt.Printf(" [+] Verbose:          yes\n")
@@ -212,10 +212,6 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	} else {
 		count = 1
 	}
-	if count < s.Opts.Parallel {
-		logger.Debugf("number of targets less than number of parallel targets, decreasing parallelism")
-		s.Opts.Parallel = count
-	}
 
 	// pre-load credentials into memory once
 	if s.Opts.Usernames != "" {
@@ -246,6 +242,13 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	// print startup configuration dashboard
 	if !logger.IsQuiet() {
 		s.printConfig(command, targets, count)
+	}
+
+	// show which module is executed
+	logger.Debugf("executing %s module", command)
+	if count < s.Opts.Parallel {
+		logger.Debugf("number of targets less than number of parallel targets, decreasing parallelism")
+		s.Opts.Parallel = count
 	}
 
 	// start progress display (disabled in quiet mode)

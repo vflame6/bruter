@@ -16,7 +16,7 @@ import (
 const AUTHOR = "Maksim Radaev (@vflame6)"
 
 // VERSION should be linked to actual tag
-const VERSION = "v0.2.0"
+const VERSION = "v1.0.0"
 
 // BANNER format string. It is used in PrintBanner function with VERSION
 const BANNER = "    __               __           \n   / /_  _______  __/ /____  _____\n  / __ \\/ ___/ / / / __/ _ \\/ ___/\n / /_/ / /  / /_/ / /_/  __/ /    \n/_.___/_/   \\__,_/\\__/\\___/_/      %s\n                                  \nMade by %s\n\n"
@@ -244,11 +244,6 @@ func main() {
 	// print program banner
 	if !*quietFlag {
 		PrintBanner()
-	}
-
-	// show which module is executed
-	if !nmapMode && !*quietFlag {
-		logger.Infof("executing %s module", command)
 	}
 
 	// pass scanner options
