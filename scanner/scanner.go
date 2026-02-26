@@ -177,6 +177,7 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	if !logger.IsQuiet() {
 		totalCreds := int64(len(s.Opts.UsernameList))*int64(len(s.Opts.PasswordList)) + int64(len(s.Opts.ComboList))
 		progress = NewProgress(s, totalCreds)
+		logger.SetProgressClearer(progress.Clear)
 		progress.Start()
 	}
 
@@ -201,6 +202,7 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	// stop progress display before printing final stats
 	if progress != nil {
 		progress.Stop()
+		logger.SetProgressClearer(nil)
 	}
 
 	// Fix 2 & 4: flush/close output file after GetResults has finished draining

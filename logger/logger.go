@@ -11,13 +11,18 @@ import (
 	"time"
 )
 
+// ProgressClearer is called before each log line to clear any active
+// progress/status line from the terminal. Set via SetProgressClearer.
+type ProgressClearer func()
+
 // Logger represents a configurable logger instance.
 type Logger struct {
-	quiet   bool
-	debug   bool
-	verbose bool
-	output  io.Writer
-	mu      sync.Mutex
+	quiet         bool
+	debug         bool
+	verbose       bool
+	output        io.Writer
+	mu            sync.Mutex
+	clearProgress ProgressClearer
 }
 
 // Default logger instance for global access.
@@ -69,6 +74,28 @@ func SetOutput(w io.Writer) {
 	defaultLogger.SetOutput(w)
 }
 
+// SetProgressClearer registers a function that clears the progress bar
+// before each log line is printed. This prevents log output from
+// colliding with the progress status line on the terminal.
+func (l *Logger) SetProgressClearer(fn ProgressClearer) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.clearProgress = fn
+}
+
+// SetProgressClearer registers a progress clearer on the default logger.
+func SetProgressClearer(fn ProgressClearer) {
+	defaultLogger.SetProgressClearer(fn)
+}
+
+// clearLine clears any active progress bar before printing a log line.
+// Must be called while l.mu is held.
+func (l *Logger) clearLine() {
+	if l.clearProgress != nil {
+		l.clearProgress()
+	}
+}
+
 // timestamp returns the current timestamp in a standard format.
 func timestamp() string {
 	return time.Now().Format("2006-01-02 15:04:05")
@@ -81,6 +108,7 @@ func timestamp() string {
 func (l *Logger) Fatal(v ...interface{}) {
 	l.mu.Lock()
 
+	l.clearLine()
 	msg := fmt.Sprint(v...)
 
 	if l.quiet {
@@ -97,6 +125,7 @@ func (l *Logger) Fatal(v ...interface{}) {
 func (l *Logger) Fatalf(format string, v ...interface{}) {
 	l.mu.Lock()
 
+	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
 
 	if l.quiet {
@@ -131,6 +160,7 @@ func (l *Logger) Info(v ...interface{}) {
 		return
 	}
 
+	l.clearLine()
 	msg := fmt.Sprint(v...)
 	fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
 }
@@ -144,6 +174,7 @@ func (l *Logger) Infof(format string, v ...interface{}) {
 		return
 	}
 
+	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
 	fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
 }
@@ -169,6 +200,7 @@ func (l *Logger) Debug(v ...interface{}) {
 		return
 	}
 
+	l.clearLine()
 	msg := fmt.Sprint(v...)
 	fmt.Fprintf(l.output, "%s [DEBUG] %s\n", timestamp(), msg)
 }
@@ -182,6 +214,7 @@ func (l *Logger) Debugf(format string, v ...interface{}) {
 		return
 	}
 
+	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
 	fmt.Fprintf(l.output, "%s [DEBUG] %s\n", timestamp(), msg)
 }
@@ -204,6 +237,7 @@ func (l *Logger) Success(v ...interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	l.clearLine()
 	msg := fmt.Sprint(v...)
 
 	if l.quiet {
@@ -218,6 +252,7 @@ func (l *Logger) Successf(format string, v ...interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
 
 	if l.quiet {
@@ -269,6 +304,7 @@ func (l *Logger) Verbosef(format string, v ...interface{}) {
 	if !l.verbose {
 		return
 	}
+	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
 	fmt.Fprintf(l.output, "%s [VERBOSE] %s\n", timestamp(), msg)
 }

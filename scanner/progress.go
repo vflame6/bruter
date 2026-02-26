@@ -39,6 +39,12 @@ func (p *Progress) Stop() {
 	<-p.doneCh
 }
 
+// Clear erases the current progress line from the terminal.
+// Safe to call from other goroutines (e.g., the logger).
+func (p *Progress) Clear() {
+	fmt.Fprintf(os.Stderr, "\r\033[K")
+}
+
 func (p *Progress) run() {
 	defer close(p.doneCh)
 	ticker := time.NewTicker(500 * time.Millisecond)
