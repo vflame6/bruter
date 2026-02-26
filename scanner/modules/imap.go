@@ -36,9 +36,11 @@ func IMAPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout ti
 		return false, fmt.Errorf("unexpected IMAP greeting: %q", greeting)
 	}
 
-	// Send LOGIN command
+	// Send LOGIN command — escape backslashes and double quotes per RFC 3501 §4.3 (quoted strings)
 	tag := "a001"
-	cmd := fmt.Sprintf("%s LOGIN \"%s\" \"%s\"\r\n", tag, credential.Username, credential.Password)
+	escUser := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(credential.Username)
+	escPass := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(credential.Password)
+	cmd := fmt.Sprintf("%s LOGIN \"%s\" \"%s\"\r\n", tag, escUser, escPass)
 	if _, err = fmt.Fprint(conn, cmd); err != nil {
 		return false, err
 	}
