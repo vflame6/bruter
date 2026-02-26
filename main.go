@@ -34,6 +34,7 @@ var (
 	// wordlist flags
 	usernameFlag = app.Flag("username", "Username or file with usernames").Short('u').String()
 	passwordFlag = app.Flag("password", "Password or file with passwords").Short('p').String()
+	comboFlag    = app.Flag("combo", "Combo wordlist file with user:pass pairs, one per line").String()
 
 	// optimization flags
 	parallelFlag      = app.Flag("concurrent-hosts", "Number of targets in parallel").Short('C').Default("32").Int()
@@ -224,9 +225,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Validate: credentials are required in both modes
-	if *usernameFlag == "" || *passwordFlag == "" {
-		fmt.Fprintln(os.Stderr, "error: required flags --username and --password not provided, try --help")
+	// Validate: credentials are required in both modes (unless --combo is provided)
+	if *comboFlag == "" && (*usernameFlag == "" || *passwordFlag == "") {
+		fmt.Fprintln(os.Stderr, "error: provide --username and --password, or --combo, try --help")
 		os.Exit(1)
 	}
 
@@ -253,6 +254,7 @@ func main() {
 	options := scanner.Options{
 		Usernames:           *usernameFlag,
 		Passwords:           *passwordFlag,
+		Combo:               *comboFlag,
 		Parallel:            *parallelFlag,
 		Threads:             *threadsFlag,
 		Timeout:             *timeoutFlag,

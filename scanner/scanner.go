@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,8 +30,10 @@ type Scanner struct {
 type Options struct {
 	Usernames           string
 	Passwords           string
+	Combo               string   // --combo: file with user:pass pairs
 	UsernameList        []string // pre-loaded usernames (populated in Run)
 	PasswordList        []string // pre-loaded passwords (populated in Run)
+	ComboList           []modules.Credential // pre-loaded combo pairs (populated in Run)
 	Command             string
 	Timeout             time.Duration
 	Parallel            int
@@ -155,10 +158,24 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
 	s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
 
+	// load combo wordlist if provided
+	if s.Opts.Combo != "" {
+		for _, line := range utils.LoadLines(s.Opts.Combo) {
+			// split on first colon only (password may contain colons)
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				s.Opts.ComboList = append(s.Opts.ComboList, modules.Credential{
+					Username: parts[0],
+					Password: parts[1],
+				})
+			}
+		}
+	}
+
 	// start progress display (disabled in quiet mode)
 	var progress *Progress
 	if !logger.IsQuiet() {
-		totalCreds := int64(len(s.Opts.UsernameList)) * int64(len(s.Opts.PasswordList))
+		totalCreds := int64(len(s.Opts.UsernameList))*int64(len(s.Opts.PasswordList)) + int64(len(s.Opts.ComboList))
 		progress = NewProgress(s, totalCreds)
 		progress.Start()
 	}
@@ -252,7 +269,7 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 		// Bug 3 fix: pass a done channel so SendCredentials exits when threads stop early
 		credentials := make(chan *modules.Credential, s.Opts.Threads*BufferMultiplier)
 		done := make(chan struct{})
-		go SendCredentials(ctx, credentials, s.Opts.UsernameList, s.Opts.PasswordList, done)
+		go SendCredentials(ctx, credentials, s.Opts.UsernameList, s.Opts.PasswordList, s.Opts.ComboList, done)
 
 		// run threads
 		var threadWg sync.WaitGroup

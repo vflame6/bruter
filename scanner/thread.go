@@ -34,9 +34,21 @@ func SendTargets(ctx context.Context, targets chan *modules.Target, defaultPort 
 }
 
 // SendCredentials sends credential pairs to the credentials channel.
+// It sends combo pairs first, then the username×password matrix.
 // Exits when the done channel is closed (threads stopped early) or ctx is cancelled.
-func SendCredentials(ctx context.Context, credentials chan *modules.Credential, usernames, passwords []string, done <-chan struct{}) {
+func SendCredentials(ctx context.Context, credentials chan *modules.Credential, usernames, passwords []string, comboList []modules.Credential, done <-chan struct{}) {
 	defer close(credentials)
+	// send combo pairs first
+	for i := range comboList {
+		select {
+		case credentials <- &comboList[i]:
+		case <-done:
+			return
+		case <-ctx.Done():
+			return
+		}
+	}
+	// then send username×password matrix
 	for _, pwd := range passwords {
 		for _, user := range usernames {
 			select {
