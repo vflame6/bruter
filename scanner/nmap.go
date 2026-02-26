@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/wordlists"
 	"github.com/vflame6/bruter/parser"
 	"github.com/vflame6/bruter/scanner/modules"
 	"github.com/vflame6/bruter/utils"
@@ -37,8 +38,16 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 	}
 
 	// Pre-load credentials once
-	s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
-	s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
+	if s.Opts.Usernames != "" {
+		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
+	} else if s.Opts.Defaults {
+		s.Opts.UsernameList = wordlists.DefaultUsernames
+	}
+	if s.Opts.Passwords != "" {
+		s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
+	} else if s.Opts.Defaults {
+		s.Opts.PasswordList = wordlists.DefaultPasswords
+	}
 
 	// Run each module group
 	for command, nmapTargets := range grouped {

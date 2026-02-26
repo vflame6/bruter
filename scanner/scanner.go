@@ -7,6 +7,7 @@ import (
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/scanner/modules"
 	"github.com/vflame6/bruter/utils"
+	"github.com/vflame6/bruter/wordlists"
 	"net"
 	"os"
 	"strconv"
@@ -31,6 +32,7 @@ type Scanner struct {
 type Options struct {
 	Usernames           string
 	Passwords           string
+	Defaults            bool     // --defaults: use built-in wordlists
 	Combo               string   // --combo: file with user:pass pairs
 	UsernameList        []string // pre-loaded usernames (populated in Run)
 	PasswordList        []string // pre-loaded passwords (populated in Run)
@@ -77,9 +79,13 @@ func (s *Scanner) printConfig(command, targets string, targetCount int) {
 	fmt.Printf(" [+] Targets:          %s (%d host(s))\n", targets, targetCount)
 	if o.Usernames != "" {
 		fmt.Printf(" [+] Usernames:        %s (%d)\n", o.Usernames, userCount)
+	} else if o.Defaults && userCount > 0 {
+		fmt.Printf(" [+] Usernames:        built-in (%d)\n", userCount)
 	}
 	if o.Passwords != "" {
 		fmt.Printf(" [+] Passwords:        %s (%d)\n", o.Passwords, passCount)
+	} else if o.Defaults && passCount > 0 {
+		fmt.Printf(" [+] Passwords:        built-in (%d)\n", passCount)
 	}
 	if o.Combo != "" {
 		fmt.Printf(" [+] Combo file:       %s (%d)\n", o.Combo, comboCount)
@@ -212,8 +218,16 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	}
 
 	// pre-load credentials into memory once
-	s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
-	s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
+	if s.Opts.Usernames != "" {
+		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
+	} else if s.Opts.Defaults {
+		s.Opts.UsernameList = wordlists.DefaultUsernames
+	}
+	if s.Opts.Passwords != "" {
+		s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
+	} else if s.Opts.Defaults {
+		s.Opts.PasswordList = wordlists.DefaultPasswords
+	}
 
 	// load combo wordlist if provided
 	if s.Opts.Combo != "" {
