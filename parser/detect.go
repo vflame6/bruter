@@ -7,13 +7,15 @@ import (
 	"strings"
 )
 
-// Format represents a recognized nmap output format.
+// Format represents a recognized scan output format.
 type Format int
 
 const (
 	FormatUnknown Format = iota
 	FormatGNMAP
 	FormatXML
+	FormatNessus
+	FormatNexpose
 )
 
 // DetectFormat sniffs the first few lines of a file to determine whether
@@ -26,17 +28,32 @@ func DetectFormat(path string) (Format, error) {
 	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
-	for i := 0; i < 10 && scanner.Scan(); i++ {
+	var xmlDetected bool
+	for i := 0; i < 20 && scanner.Scan(); i++ {
 		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "<?xml") || strings.HasPrefix(line, "<nmaprun") {
-			return FormatXML, nil
-		}
 		if strings.HasPrefix(line, "# Nmap") && strings.Contains(line, "scan") {
 			return FormatGNMAP, nil
 		}
 		if strings.HasPrefix(line, "Host:") {
 			return FormatGNMAP, nil
 		}
+		if strings.HasPrefix(line, "<?xml") || strings.HasPrefix(line, "<!DOCTYPE") {
+			xmlDetected = true
+			continue
+		}
+		if strings.HasPrefix(line, "<nmaprun") {
+			return FormatXML, nil
+		}
+		if strings.HasPrefix(line, "<NessusClientData") {
+			return FormatNessus, nil
+		}
+		if strings.HasPrefix(line, "<NexposeReport") || strings.HasPrefix(line, "<NeXposeSimpleXML") {
+			return FormatNexpose, nil
+		}
+	}
+	if xmlDetected {
+		// XML but unknown root — could be nmap XML without nmaprun in first lines
+		return FormatXML, nil
 	}
 	return FormatUnknown, nil
 }
@@ -58,7 +75,11 @@ func ParseFile(path string, forceFormat Format) ([]Target, error) {
 		return ParseGNMAP(path)
 	case FormatXML:
 		return ParseXML(path)
+	case FormatNessus:
+		return ParseNessus(path)
+	case FormatNexpose:
+		return ParseNexpose(path)
 	default:
-		return nil, fmt.Errorf("unable to detect nmap output format for %s; use --nmap-gnmap or --nmap-xml to specify", path)
+		return nil, fmt.Errorf("unable to detect scan output format for %s; supported: nmap (GNMAP/XML), Nessus (.nessus), Nexpose XML", path)
 	}
 }

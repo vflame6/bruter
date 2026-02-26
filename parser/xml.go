@@ -72,6 +72,7 @@ func ParseXML(path string) ([]Target, error) {
 			}
 
 			service := strings.ToLower(port.Service.Name)
+
 			if service == "" || service == "unknown" {
 				continue
 			}

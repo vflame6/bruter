@@ -3,9 +3,11 @@ package scanner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/scanner/modules"
 	"github.com/vflame6/bruter/utils"
+	"github.com/vflame6/bruter/wordlists"
 	"net"
 	"os"
 	"strconv"
@@ -30,6 +32,7 @@ type Scanner struct {
 type Options struct {
 	Usernames           string
 	Passwords           string
+	Defaults            bool     // --defaults: use built-in wordlists
 	Combo               string   // --combo: file with user:pass pairs
 	UsernameList        []string // pre-loaded usernames (populated in Run)
 	PasswordList        []string // pre-loaded passwords (populated in Run)
@@ -61,6 +64,61 @@ type Result struct {
 	Password       string
 	OriginalTarget string    // raw input from Target.OriginalTarget
 	Timestamp      time.Time // time of successful authentication
+}
+
+// printConfig prints a puredns-style configuration dashboard before the scan starts.
+func (s *Scanner) printConfig(command, targets string, targetCount int) {
+	o := s.Opts
+	userCount := len(o.UsernameList)
+	passCount := len(o.PasswordList)
+	comboCount := len(o.ComboList)
+	totalCreds := int64(userCount)*int64(passCount) + int64(comboCount)
+
+	fmt.Println("-------------------------------------------------------")
+	fmt.Printf(" [+] Module:           %s\n", command)
+	fmt.Printf(" [+] Targets:          %s (%d host(s))\n", targets, targetCount)
+	if o.Usernames != "" {
+		fmt.Printf(" [+] Usernames:        %s (%d)\n", o.Usernames, userCount)
+	} else if o.Defaults && userCount > 0 {
+		fmt.Printf(" [+] Usernames:        built-in (%d)\n", userCount)
+	}
+	if o.Passwords != "" {
+		fmt.Printf(" [+] Passwords:        %s (%d)\n", o.Passwords, passCount)
+	} else if o.Defaults && passCount > 0 {
+		fmt.Printf(" [+] Passwords:        built-in (%d)\n", passCount)
+	}
+	if o.Combo != "" {
+		fmt.Printf(" [+] Combo file:       %s (%d)\n", o.Combo, comboCount)
+	}
+	fmt.Printf(" [+] Credential pairs: %d\n", totalCreds)
+	fmt.Printf(" [+] Threads:          %d\n", o.Threads)
+	fmt.Printf(" [+] Parallel hosts:   %d\n", o.Parallel)
+	fmt.Printf(" [+] Timeout:          %s\n", o.Timeout)
+	if o.Delay > 0 {
+		fmt.Printf(" [+] Delay:            %s\n", o.Delay)
+	}
+	if o.Proxy != "" {
+		fmt.Printf(" [+] Proxy:            %s\n", o.Proxy)
+	}
+	if o.OutputFileName != "" {
+		fmt.Printf(" [+] Output:           %s\n", o.OutputFileName)
+	}
+	if o.JSON {
+		fmt.Printf(" [+] Format:           JSONL\n")
+	}
+	if o.StopOnSuccess {
+		fmt.Printf(" [+] Stop on success:  yes\n")
+	}
+	if o.GlobalStop {
+		fmt.Printf(" [+] Global stop:      yes\n")
+	}
+	if o.Verbose {
+		fmt.Printf(" [+] Verbose:          yes\n")
+	}
+	if o.Iface != "" {
+		fmt.Printf(" [+] Interface:        %s\n", o.Iface)
+	}
+	fmt.Println("-------------------------------------------------------")
 }
 
 // NewScanner function creates new scanner object based on options
@@ -96,6 +154,11 @@ func NewScanner(options *Options) (*Scanner, error) {
 
 	// if an --output option is used, create a file
 	if options.OutputFileName != "" {
+		if _, err := os.Stat(options.OutputFileName); err == nil {
+			return nil, fmt.Errorf("output file %q already exists. Use a different filename to avoid data loss", options.OutputFileName)
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("cannot check output file %q: %w", options.OutputFileName, err)
+		}
 		var err error
 		outputFile, err = os.Create(options.OutputFileName)
 		if err != nil {
@@ -155,8 +218,16 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	}
 
 	// pre-load credentials into memory once
-	s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
-	s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
+	if s.Opts.Usernames != "" {
+		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
+	} else if s.Opts.Defaults {
+		s.Opts.UsernameList = wordlists.DefaultUsernames
+	}
+	if s.Opts.Passwords != "" {
+		s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
+	} else if s.Opts.Defaults {
+		s.Opts.PasswordList = wordlists.DefaultPasswords
+	}
 
 	// load combo wordlist if provided
 	if s.Opts.Combo != "" {
@@ -170,6 +241,11 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 				})
 			}
 		}
+	}
+
+	// print startup configuration dashboard
+	if !logger.IsQuiet() {
+		s.printConfig(command, targets, count)
 	}
 
 	// start progress display (disabled in quiet mode)

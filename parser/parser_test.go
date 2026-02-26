@@ -93,6 +93,115 @@ func TestParseXML(t *testing.T) {
 	assertTarget(t, targets[5], "2001:db8::1", 22, "ssh")
 }
 
+const sampleNessus = `<?xml version="1.0" ?>
+<NessusClientData_v2>
+  <Report name="Test Scan">
+    <ReportHost name="192.168.1.1">
+      <ReportItem port="22" svc_name="ssh" protocol="tcp" severity="0" pluginID="10267" pluginName="SSH Server Type"/>
+      <ReportItem port="80" svc_name="www" protocol="tcp" severity="0" pluginID="10107" pluginName="HTTP Server Type"/>
+      <ReportItem port="3306" svc_name="mysql" protocol="tcp" severity="0" pluginID="10719" pluginName="MySQL"/>
+      <ReportItem port="0" svc_name="general" protocol="tcp" severity="0" pluginID="19506" pluginName="Scan Information"/>
+    </ReportHost>
+    <ReportHost name="192.168.1.10">
+      <ReportItem port="445" svc_name="cifs" protocol="tcp" severity="0" pluginID="11011" pluginName="SMB"/>
+      <ReportItem port="5432" svc_name="postgresql" protocol="tcp" severity="0" pluginID="22222" pluginName="PostgreSQL"/>
+    </ReportHost>
+  </Report>
+</NessusClientData_v2>
+`
+
+const sampleNexpose = `<?xml version="1.0" ?>
+<NexposeReport version="2.0">
+  <nodes>
+    <node address="10.0.0.1">
+      <endpoints>
+        <endpoint port="22" status="open" protocol="tcp">
+          <services><service name="ssh"/></services>
+        </endpoint>
+        <endpoint port="21" status="open" protocol="tcp">
+          <services><service name="ftp"/></services>
+        </endpoint>
+        <endpoint port="8080" status="closed" protocol="tcp">
+          <services><service name="http"/></services>
+        </endpoint>
+      </endpoints>
+    </node>
+    <node address="10.0.0.2">
+      <endpoints>
+        <endpoint port="3306" status="open" protocol="tcp">
+          <services><service name="mysql"/></services>
+        </endpoint>
+      </endpoints>
+    </node>
+  </nodes>
+</NexposeReport>
+`
+
+func TestParseNessus(t *testing.T) {
+	path := writeTempFile(t, "scan.nessus", sampleNessus)
+	targets, err := ParseNessus(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Expected: ssh(22), http-basic(80 via www), mysql(3306), smb(445 via cifs), postgres(5432)
+	// NOT: port 0 general
+	if len(targets) != 5 {
+		t.Fatalf("expected 5 targets, got %d: %v", len(targets), targets)
+	}
+
+	assertTarget(t, targets[0], "192.168.1.1", 22, "ssh")
+	assertTarget(t, targets[1], "192.168.1.1", 80, "http-basic")
+	assertTarget(t, targets[2], "192.168.1.1", 3306, "mysql")
+	assertTarget(t, targets[3], "192.168.1.10", 445, "smb")
+	assertTarget(t, targets[4], "192.168.1.10", 5432, "postgres")
+}
+
+func TestParseNexpose(t *testing.T) {
+	path := writeTempFile(t, "scan.xml", sampleNexpose)
+	targets, err := ParseNexpose(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Expected: ssh(22), ftp(21), mysql(3306)
+	// NOT: http(8080) — closed
+	if len(targets) != 3 {
+		t.Fatalf("expected 3 targets, got %d: %v", len(targets), targets)
+	}
+
+	assertTarget(t, targets[0], "10.0.0.1", 22, "ssh")
+	assertTarget(t, targets[1], "10.0.0.1", 21, "ftp")
+	assertTarget(t, targets[2], "10.0.0.2", 3306, "mysql")
+}
+
+func TestDetectFormatNessus(t *testing.T) {
+	path := writeTempFile(t, "scan.nessus", sampleNessus)
+	f, _ := DetectFormat(path)
+	if f != FormatNessus {
+		t.Errorf("expected Nessus, got %d", f)
+	}
+}
+
+func TestDetectFormatNexpose(t *testing.T) {
+	path := writeTempFile(t, "scan.xml", sampleNexpose)
+	f, _ := DetectFormat(path)
+	if f != FormatNexpose {
+		t.Errorf("expected Nexpose, got %d", f)
+	}
+}
+
+func TestParseFileNessus(t *testing.T) {
+	path := writeTempFile(t, "scan.nessus", sampleNessus)
+	targets, err := ParseFile(path, FormatUnknown)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 5 {
+		t.Fatalf("expected 5 targets, got %d", len(targets))
+	}
+}
+
 func TestDetectFormat(t *testing.T) {
 	gnmapPath := writeTempFile(t, "scan.gnmap", sampleGNMAP)
 	xmlPath := writeTempFile(t, "scan.xml", sampleXML)
