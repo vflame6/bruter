@@ -21,7 +21,7 @@ Created by Maksim Radaev/[@vflame6](https://github.com/vflame6)
 
 ![bruter](static/bruter_demo.png)
 
-Available modules: `amqp`, `clickhouse`, `etcd`, `ftp`, `mongo`, `postgres`, `redis`, `smpp`, `ssh`, `vault`
+Available modules: `amqp` ,`asterisk` ,`clickhouse` ,`etcd` ,`ftp` ,`http-basic` ,`imap` ,`irc` ,`cisco` ,`cisco-enable` ,`cobaltstrike` ,`teamspeak` ,`telnet` ,`ldap` ,`ldaps` ,`mongo` ,`mssql` ,`mysql` ,`pop3` ,`postgres` ,`redis` ,`rexec` ,`rlogin` ,`rsh` ,`rtsp` ,`smb` ,`socks5` ,`snmp` ,`smpp` ,`smtp` ,`ssh` ,`sshkey` ,`vault` ,`vnc` ,`xmpp`
 
 Available features:
 
@@ -38,7 +38,7 @@ bruter -h
 Here is a help menu for the tool:
 
 ```yaml
-usage: bruter --target=TARGET --username=USERNAME --password=PASSWORD [<flags>] <command> [<args> ...]
+usage: bruter [<flags>] <command> [<args> ...]
 
   bruter is a network services bruteforce tool.
 
@@ -47,28 +47,42 @@ Flags:
   and --help-man).
   -t, --target=TARGET          Target host or file with targets. Format host or
   host:port, one per line
+  -n, --nmap=NMAP              Nmap output file (GNMAP or XML, auto-detected).
+  Runs matching modules automatically.
   -u, --username=USERNAME      Username or file with usernames
   -p, --password=PASSWORD      Password or file with passwords
+  --combo=COMBO            Combo wordlist file with user:pass pairs,
+  one per line
   -C, --concurrent-hosts=32    Number of targets in parallel
   -c, --concurrent-threads=10  Number of parallel threads per target
   -d, --delay=0s               Delay between each attempt. Will always use
   single thread if set
   --timeout=5s             Connection timeout in seconds
-  --[no-]stop-on-success   Stop bruteforce the host on first success
+  -f, --[no-]stop-on-success   Stop bruteforcing current host when first valid
+  credentials found (-f per host, -F global)
+  -F, --[no-]stop-on-success-global
+  Stop the entire run on first successful login
+  across all hosts
   --max-retries=30         Number of connection errors to stop bruteforce
   the host. Specify 0 to disable this behavior
   --proxy=""               SOCKS-proxy address to use for connection in
   format IP:PORT
   --proxy-auth=""          Proxy username and password in format
   username:password
+  -I, --iface=""               Network interface to bind outgoing connections to
+  (e.g. eth0)
   --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
   User-Agent for HTTP connections
   -q, --[no-]quiet             Enable quiet mode, print results only
   -D, --[no-]debug             Enable debug mode, print all logs
+  -v, --[no-]verbose           Enable verbose mode, log every attempt with
+  timestamp
+  -j, --[no-]json              Output results as JSONL (one JSON object per
+  line)
   -o, --output=""              Filename to write output in raw format
   --[no-]version           Show application version.
 
-Commands: amqp clickhouse etcd ftp mongo postgres redis smpp ssh vault
+Commands: amqp asterisk clickhouse etcd ftp http-basic imap irc cisco cisco-enable cobaltstrike teamspeak telnet ldap ldaps mongo mssql mysql pop3 postgres redis rexec rlogin rsh rtsp smb socks5 snmp smpp smtp ssh sshkey vault vnc xmpp
 ```
 
 Targets are specified in format `IP` or `IP:PORT`. If `PORT` is not specified, the tool uses the default one (for example: `9000` for ClickHouse). 
