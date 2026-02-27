@@ -222,7 +222,11 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	if s.Opts.Passwords != "" {
 		s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
 	} else if s.Opts.Defaults {
-		s.Opts.PasswordList = wordlists.DefaultPasswords
+		if s.Opts.Command == "sshkey" {
+			s.Opts.PasswordList = wordlists.DefaultSSHKeys
+		} else {
+			s.Opts.PasswordList = wordlists.DefaultPasswords
+		}
 	}
 
 	// load combo wordlist if provided

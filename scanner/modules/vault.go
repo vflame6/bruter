@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -56,7 +56,7 @@ func VaultHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	bodyString := string(body)
 
 	// successful authentication
