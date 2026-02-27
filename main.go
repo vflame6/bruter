@@ -10,6 +10,7 @@ import (
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/scanner"
+	"github.com/vflame6/bruter/utils"
 )
 
 // AUTHOR of the program
@@ -213,15 +214,18 @@ func main() {
 	// parse program arguments
 	command := ParseArgs()
 
-	// all command requires -n flag
+	// Detect stdin pipe
+	stdinMode := utils.HasStdin()
+
+	// all command requires -n flag or stdin
 	nmapMode := command == "all"
-	if nmapMode && *nmapFlag == "" {
-		fmt.Fprintln(os.Stderr, "error: 'all' command requires --nmap/-n scan file, try --help")
+	if nmapMode && *nmapFlag == "" && !stdinMode {
+		fmt.Fprintln(os.Stderr, "error: 'all' command requires --nmap/-n scan file or piped stdin, try --help")
 		os.Exit(1)
 	}
 
-	// Validate: in normal mode, --target is required
-	if !nmapMode && *targetFlag == "" {
+	// Validate: in normal mode, --target is required (unless stdin)
+	if !nmapMode && !stdinMode && *targetFlag == "" {
 		fmt.Fprintln(os.Stderr, "error: required flag --target not provided, try --help")
 		os.Exit(1)
 	}
@@ -277,7 +281,13 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	if nmapMode {
+	if stdinMode {
+		// stdin mode: read targets from pipe and auto-route to modules
+		err = s.RunStdinWithResults(ctx, os.Stdin)
+		if err != nil {
+			logger.Fatal(err)
+		}
+	} else if nmapMode {
 		// nmap mode: parse nmap output and run matching modules
 		err = s.RunNmapWithResults(ctx, *nmapFlag)
 		if err != nil {
