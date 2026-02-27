@@ -24,6 +24,20 @@ func TestDefaultPasswords(t *testing.T) {
 	}
 }
 
+func TestDefaultSSHKeys(t *testing.T) {
+	if len(DefaultSSHKeys) != 9 {
+		t.Errorf("expected 9 SSH bad keys, got %d", len(DefaultSSHKeys))
+	}
+	for i, key := range DefaultSSHKeys {
+		if len(key) == 0 {
+			t.Errorf("SSH key %d is empty", i)
+		}
+		if key[:5] != "-----" {
+			t.Errorf("SSH key %d doesn't start with PEM header: %q", i, key[:20])
+		}
+	}
+}
+
 func TestNoDuplicateUsernames(t *testing.T) {
 	seen := make(map[string]bool)
 	for _, u := range DefaultUsernames {
