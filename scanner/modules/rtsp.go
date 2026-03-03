@@ -3,7 +3,6 @@ package modules
 import (
 	"bufio"
 	"context"
-	"crypto/md5" //nolint:gosec
 	"encoding/base64"
 	"fmt"
 	"math/rand"
@@ -131,17 +130,17 @@ func buildDigestAuth(challenge, username, password, method, uri string) (string,
 		return "", fmt.Errorf("missing realm or nonce")
 	}
 
-	ha1 := md5hex(username + ":" + realm + ":" + password)
-	ha2 := md5hex(method + ":" + uri)
+	ha1 := utils.MD5Hex(username + ":" + realm + ":" + password)
+	ha2 := utils.MD5Hex(method + ":" + uri)
 	cnonce := fmt.Sprintf("%08x", rand.Uint32()) //nolint:gosec
 	nc := "00000001"
 
 	qop := params["qop"]
 	var response string
 	if strings.Contains(qop, "auth") {
-		response = md5hex(ha1 + ":" + nonce + ":" + nc + ":" + cnonce + ":auth:" + ha2)
+		response = utils.MD5Hex(ha1 + ":" + nonce + ":" + nc + ":" + cnonce + ":auth:" + ha2)
 	} else {
-		response = md5hex(ha1 + ":" + nonce + ":" + ha2)
+		response = utils.MD5Hex(ha1 + ":" + nonce + ":" + ha2)
 	}
 
 	header := fmt.Sprintf(`Digest username="%s", realm="%s", nonce="%s", uri="%s", response="%s"`,
@@ -174,7 +173,4 @@ func parseDigestChallenge(header string) map[string]string {
 	return result
 }
 
-func md5hex(s string) string {
-	sum := md5.Sum([]byte(s)) //nolint:gosec
-	return fmt.Sprintf("%x", sum)
-}
+
