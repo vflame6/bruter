@@ -24,9 +24,8 @@ var serviceMap = map[string]string{
 	"ssh":            "ssh",
 	"telnet":         "telnet",
 	"smtp":           "smtp",
-	"http":           "http-basic",
-	"http-alt":       "http-basic",
-	"http-proxy":     "http-basic",
+	// http/https services are intentionally excluded — http-basic produces
+	// too many false positives and must be run manually via the http-basic command.
 	"pop3":           "pop3",
 	"pop3s":          "pop3",
 	"imap":           "imap",
@@ -73,8 +72,7 @@ var serviceMap = map[string]string{
 	"wsmans":         "winrm",
 	"winrm":          "winrm",
 	"ms-wbt-server":  "rdp",
-	"https":          "http-basic",
-	"https-alt":      "http-basic",
+	// https/https-alt excluded — see http comment above.
 	"submission":     "smtp",
 	"smtps":          "smtp",
 }

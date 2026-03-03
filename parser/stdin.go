@@ -27,12 +27,12 @@ var portServiceMap = map[int]string{
 	22:    "ssh",
 	23:    "telnet",
 	25:    "smtp",
-	80:    "http-basic",
+	// 80: http-basic excluded — manual only
 	110:   "pop3",
 	143:   "imap",
 	161:   "snmp",
 	389:   "ldap",
-	443:   "http-basic",
+	// 443: http-basic excluded — manual only
 	445:   "smb",
 	993:   "imap",
 	995:   "pop3",
@@ -45,8 +45,7 @@ var portServiceMap = map[int]string{
 	5900:  "vnc",
 	5985:  "winrm",
 	6379:  "redis",
-	8080:  "http-basic",
-	8443:  "http-basic",
+	// 8080, 8443: http-basic excluded — manual only
 	9000:  "clickhouse",
 	9200:  "elasticsearch",
 	27017: "mongo",
@@ -159,7 +158,7 @@ func mapService(svc string, port int) string {
 func isKnownModule(name string) bool {
 	known := map[string]bool{
 		"amqp": true, "asterisk": true, "clickhouse": true, "cisco": true,
-		"cisco_enable": true, "etcd": true, "ftp": true, "http-basic": true,
+		"cisco_enable": true, "etcd": true, "ftp": true,
 		"imap": true, "irc": true, "ldap": true, "ldaps": true,
 		"mongo": true, "mssql": true, "mysql": true, "oracle": true,
 		"pop3": true, "postgres": true, "rdp": true, "redis": true,

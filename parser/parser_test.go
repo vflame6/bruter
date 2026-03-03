@@ -60,16 +60,14 @@ func TestParseGNMAP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Expected: ssh, http-basic, http-basic (https), mysql, redis, postgres, smb, ftp, smtp, http-basic (http-alt), snmp, vnc
-	// NOT telnet (closed)
-	if len(targets) != 12 {
-		t.Fatalf("expected 12 targets, got %d: %v", len(targets), targets)
+	// Expected: ssh, mysql, redis, postgres, smb, ftp, smtp, snmp, vnc
+	// NOT telnet (closed), NOT http/https/http-alt (http-basic is manual-only)
+	if len(targets) != 9 {
+		t.Fatalf("expected 9 targets, got %d: %v", len(targets), targets)
 	}
 
-	// Check first host
+	// Check first host — only ssh (http and https are excluded)
 	assertTarget(t, targets[0], "192.168.1.1", 22, "ssh")
-	assertTarget(t, targets[1], "192.168.1.1", 80, "http-basic")
-	assertTarget(t, targets[2], "192.168.1.1", 443, "http-basic")
 }
 
 func TestParseXML(t *testing.T) {
@@ -79,18 +77,17 @@ func TestParseXML(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Expected: ssh(22), http-basic(80), https→http-basic(443), mysql(3306), postgres(5432), ssh(22 ipv6)
+	// Expected: ssh(22), mysql(3306), postgres(5432), ssh(22 ipv6)
+	// NOT: http(80), https(443) — http-basic is manual-only
 	// NOT: unknown(9999), closed http-alt(8080)
-	if len(targets) != 6 {
-		t.Fatalf("expected 6 targets, got %d: %v", len(targets), targets)
+	if len(targets) != 4 {
+		t.Fatalf("expected 4 targets, got %d: %v", len(targets), targets)
 	}
 
 	assertTarget(t, targets[0], "192.168.1.1", 22, "ssh")
-	assertTarget(t, targets[1], "192.168.1.1", 80, "http-basic")
-	assertTarget(t, targets[2], "192.168.1.1", 443, "http-basic") // https via tunnel=ssl
-	assertTarget(t, targets[3], "192.168.1.10", 3306, "mysql")
-	assertTarget(t, targets[4], "192.168.1.10", 5432, "postgres")
-	assertTarget(t, targets[5], "2001:db8::1", 22, "ssh")
+	assertTarget(t, targets[1], "192.168.1.10", 3306, "mysql")
+	assertTarget(t, targets[2], "192.168.1.10", 5432, "postgres")
+	assertTarget(t, targets[3], "2001:db8::1", 22, "ssh")
 }
 
 const sampleNessus = `<?xml version="1.0" ?>
@@ -144,17 +141,16 @@ func TestParseNessus(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Expected: ssh(22), http-basic(80 via www), mysql(3306), smb(445 via cifs), postgres(5432)
-	// NOT: port 0 general
-	if len(targets) != 5 {
-		t.Fatalf("expected 5 targets, got %d: %v", len(targets), targets)
+	// Expected: ssh(22), mysql(3306), smb(445 via cifs), postgres(5432)
+	// NOT: www/port 80 (http-basic is manual-only), NOT: port 0 general
+	if len(targets) != 4 {
+		t.Fatalf("expected 4 targets, got %d: %v", len(targets), targets)
 	}
 
 	assertTarget(t, targets[0], "192.168.1.1", 22, "ssh")
-	assertTarget(t, targets[1], "192.168.1.1", 80, "http-basic")
-	assertTarget(t, targets[2], "192.168.1.1", 3306, "mysql")
-	assertTarget(t, targets[3], "192.168.1.10", 445, "smb")
-	assertTarget(t, targets[4], "192.168.1.10", 5432, "postgres")
+	assertTarget(t, targets[1], "192.168.1.1", 3306, "mysql")
+	assertTarget(t, targets[2], "192.168.1.10", 445, "smb")
+	assertTarget(t, targets[3], "192.168.1.10", 5432, "postgres")
 }
 
 func TestParseNexpose(t *testing.T) {
@@ -197,8 +193,8 @@ func TestParseFileNessus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(targets) != 5 {
-		t.Fatalf("expected 5 targets, got %d", len(targets))
+	if len(targets) != 4 {
+		t.Fatalf("expected 4 targets, got %d", len(targets))
 	}
 }
 
@@ -231,8 +227,8 @@ func TestParseFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(targets) != 12 {
-		t.Fatalf("expected 12 targets, got %d", len(targets))
+	if len(targets) != 9 {
+		t.Fatalf("expected 9 targets, got %d", len(targets))
 	}
 
 	// Force format
@@ -241,8 +237,8 @@ func TestParseFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(targets) != 6 {
-		t.Fatalf("expected 6 targets, got %d", len(targets))
+	if len(targets) != 4 {
+		t.Fatalf("expected 4 targets, got %d", len(targets))
 	}
 }
 

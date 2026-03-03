@@ -29,11 +29,6 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 	// Group targets by bruter module
 	grouped := make(map[string][]parser.Target)
 	for _, t := range targets {
-		// Skip http-basic in scan mode — any HTTP service matches,
-		// producing too many false positives. Run it manually instead.
-		if t.Service == "http-basic" {
-			continue
-		}
 		grouped[t.Service] = append(grouped[t.Service], t)
 	}
 
@@ -167,9 +162,6 @@ func NmapSummary(nmapFile string) (string, error) {
 
 	grouped := make(map[string]int)
 	for _, t := range targets {
-		if t.Service == "http-basic" {
-			continue
-		}
 		grouped[t.Service]++
 	}
 
