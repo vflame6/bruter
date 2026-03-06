@@ -12,6 +12,7 @@ require (
 	github.com/jlaffaye/ftp v0.2.0
 	github.com/lib/pq v1.11.2
 	github.com/linxGnu/gosmpp v0.3.1
+	github.com/mattn/go-isatty v0.0.20
 	github.com/microsoft/go-mssqldb v1.9.6
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.18.0
@@ -21,7 +22,7 @@ require (
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.48.0
 	golang.org/x/net v0.51.0
-	google.golang.org/grpc v1.79.1
+	google.golang.org/grpc v1.79.2
 )
 
 require (
@@ -47,7 +48,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.25 // indirect
