@@ -37,8 +37,9 @@ func TestNmapSummary_Valid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NmapSummary error: %v", err)
 	}
-	if !strings.Contains(summary, "4 targets") {
-		t.Errorf("summary should mention 4 targets: %s", summary)
+	// 3 supported targets: ssh, ftp, mysql (http is excluded — http-basic is manual-only)
+	if !strings.Contains(summary, "3 targets") {
+		t.Errorf("summary should mention 3 targets: %s", summary)
 	}
 	if !strings.Contains(summary, "ssh") {
 		t.Errorf("summary should mention ssh: %s", summary)

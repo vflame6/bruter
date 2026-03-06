@@ -34,6 +34,8 @@ var DefaultPasswords = parseLines(passwordsRaw)
 // Source: https://github.com/rapid7/ssh-badkeys
 var DefaultSSHKeys = parsePEMKeys(sshBadKeysRaw)
 
+
+
 func parsePEMKeys(raw string) []string {
 	data := []byte(raw)
 	var keys []string

@@ -38,6 +38,7 @@ var (
 	comboFlag    = app.Flag("combo", "Combo wordlist file with user:pass pairs, one per line").String()
 	defaultsFlag = app.Flag("defaults", "Use built-in default username and password wordlists (user-specified -u/-p take priority)").Default("false").Bool()
 
+
 	// optimization flags
 	parallelFlag      = app.Flag("concurrent-hosts", "Number of targets in parallel").Short('C').Default("32").Int()
 	threadsFlag       = app.Flag("concurrent-threads", "Number of parallel threads per target").Short('c').Default("10").Int()
@@ -255,6 +256,7 @@ func main() {
 		Usernames:           *usernameFlag,
 		Passwords:           *passwordFlag,
 		Defaults:            *defaultsFlag,
+
 		Combo:               *comboFlag,
 		Parallel:            *parallelFlag,
 		Threads:             *threadsFlag,

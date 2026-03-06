@@ -77,12 +77,16 @@ func (s *Scanner) printConfig(command, targets string, targetCount int) {
 	fmt.Println("-------------------------------------------------------")
 	fmt.Printf(" [+] Module:           %s\n", command)
 	fmt.Printf(" [+] Targets:          %s (%d host(s))\n", targets, targetCount)
-	if o.Usernames != "" {
+	if o.Usernames != "" && o.Defaults {
+		fmt.Printf(" [+] Usernames:        %s + built-in (%d)\n", o.Usernames, userCount)
+	} else if o.Usernames != "" {
 		fmt.Printf(" [+] Usernames:        %s (%d)\n", o.Usernames, userCount)
 	} else if o.Defaults && userCount > 0 {
 		fmt.Printf(" [+] Usernames:        built-in (%d)\n", userCount)
 	}
-	if o.Passwords != "" {
+	if o.Passwords != "" && o.Defaults {
+		fmt.Printf(" [+] Passwords:        %s + built-in (%d)\n", o.Passwords, passCount)
+	} else if o.Passwords != "" {
 		fmt.Printf(" [+] Passwords:        %s (%d)\n", o.Passwords, passCount)
 	} else if o.Defaults && passCount > 0 {
 		fmt.Printf(" [+] Passwords:        built-in (%d)\n", passCount)
@@ -214,18 +218,21 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	}
 
 	// pre-load credentials into memory once
+	// -u/-p and --defaults combine when both are specified
 	if s.Opts.Usernames != "" {
 		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
-	} else if s.Opts.Defaults {
-		s.Opts.UsernameList = wordlists.DefaultUsernames
+	}
+	if s.Opts.Defaults {
+		s.Opts.UsernameList = append(s.Opts.UsernameList, wordlists.DefaultUsernames...)
 	}
 	if s.Opts.Passwords != "" {
 		s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
-	} else if s.Opts.Defaults {
+	}
+	if s.Opts.Defaults {
 		if s.Opts.Command == "sshkey" {
-			s.Opts.PasswordList = wordlists.DefaultSSHKeys
+			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultSSHKeys...)
 		} else {
-			s.Opts.PasswordList = wordlists.DefaultPasswords
+			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultPasswords...)
 		}
 	}
 

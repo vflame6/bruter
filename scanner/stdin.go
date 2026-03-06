@@ -42,16 +42,19 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 		logger.Infof("  %s: %d target(s)", svc, len(tgts))
 	}
 
-	// Pre-load credentials once
+	// Pre-load usernames once (same for all modules)
+	// -u and --defaults combine when both are specified
 	if s.Opts.Usernames != "" {
 		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
-	} else if s.Opts.Defaults {
-		s.Opts.UsernameList = wordlists.DefaultUsernames
 	}
+	if s.Opts.Defaults {
+		s.Opts.UsernameList = append(s.Opts.UsernameList, wordlists.DefaultUsernames...)
+	}
+
+	// Pre-load passwords from file once (if user specified -p)
+	var userPasswords []string
 	if s.Opts.Passwords != "" {
-		s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
-	} else if s.Opts.Defaults {
-		s.Opts.PasswordList = wordlists.DefaultPasswords
+		userPasswords = utils.LoadLines(s.Opts.Passwords)
 	}
 
 	// Run each module group
@@ -71,6 +74,19 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 
 		logger.Infof("executing %s module (%d targets)", command, len(stdinTargets))
 		s.Opts.Command = command
+
+		// Select passwords per module: combine user-specified + defaults when both present
+		s.Opts.PasswordList = nil
+		if userPasswords != nil {
+			s.Opts.PasswordList = append(s.Opts.PasswordList, userPasswords...)
+		}
+		if s.Opts.Defaults {
+			if command == "sshkey" {
+				s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultSSHKeys...)
+			} else {
+				s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultPasswords...)
+			}
+		}
 
 		// Convert parser targets to scanner targets (resolve DNS)
 		var scanTargets []*modules.Target
