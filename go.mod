@@ -1,6 +1,6 @@
 module github.com/vflame6/bruter
 
-go 1.25.0
+go 1.25.7
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.43.0
@@ -12,7 +12,8 @@ require (
 	github.com/jlaffaye/ftp v0.2.0
 	github.com/lib/pq v1.11.2
 	github.com/linxGnu/gosmpp v0.3.1
-	github.com/microsoft/go-mssqldb v1.9.6
+	github.com/mattn/go-isatty v0.0.20
+	github.com/microsoft/go-mssqldb v1.9.8
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/xmppo/go-xmpp v0.3.2
@@ -47,7 +48,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/orcaman/concurrent-map/v2 v2.0.1 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.25 // indirect
