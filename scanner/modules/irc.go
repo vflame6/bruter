@@ -47,6 +47,10 @@ func IRCHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout tim
 			return false, nil // ERR_PASSWDMISMATCH
 		case strings.Contains(line, " 433 "):
 			// ERR_NICKNAMEINUSE — auth not yet checked; keep reading
+		case strings.HasPrefix(line, "PING "):
+			// Server requires PONG during registration (e.g. InspIRCd).
+			token := strings.TrimSpace(strings.TrimPrefix(line, "PING "))
+			_, _ = fmt.Fprintf(conn, "PONG %s\r\n", token)
 		}
 	}
 }
