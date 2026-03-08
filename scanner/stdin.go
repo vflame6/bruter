@@ -140,11 +140,9 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 		s.Targets = origTargets
 	}
 
-	// Close results and wait for output
+	// Close results channel so GetResults can finish draining.
+	// The caller (RunStdinWithResults) waits for GetResults and prints stats.
 	close(s.Results)
-
-	logger.Infof("Done: %d credential pairs tried, %d successful logins found",
-		s.Attempts.Load(), s.Successes.Load())
 
 	return nil
 }
@@ -157,8 +155,12 @@ func (s *Scanner) RunStdinWithResults(ctx context.Context, r io.Reader) error {
 
 	err := s.RunStdin(ctx, r)
 
+	// Wait for all results to be processed before reading counters.
 	resultsWg.Wait()
 	s.Stop()
+
+	logger.Infof("Done: %d credential pairs tried, %d successful logins found",
+		s.Attempts.Load(), s.Successes.Load())
 
 	return err
 }

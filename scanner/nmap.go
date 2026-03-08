@@ -139,15 +139,9 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 		s.Targets = origTargets
 	}
 
-	// Close results and wait for output
+	// Close results channel so GetResults can finish draining.
+	// The caller (RunNmapWithResults) waits for GetResults and prints stats.
 	close(s.Results)
-
-	logger.Infof("Done: %d credential pairs tried, %d successful logins found",
-		s.Attempts.Load(), s.Successes.Load())
-
-	if ctx.Err() != nil {
-		logger.Infof("Interrupted")
-	}
 
 	return nil
 }
@@ -160,8 +154,16 @@ func (s *Scanner) RunNmapWithResults(ctx context.Context, nmapFile string) error
 
 	err := s.RunNmap(ctx, nmapFile)
 
+	// Wait for all results to be processed before reading counters.
 	resultsWg.Wait()
 	s.Stop()
+
+	logger.Infof("Done: %d credential pairs tried, %d successful logins found",
+		s.Attempts.Load(), s.Successes.Load())
+
+	if ctx.Err() != nil {
+		logger.Infof("Interrupted")
+	}
 
 	return err
 }
