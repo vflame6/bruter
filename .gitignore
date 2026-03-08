@@ -35,3 +35,6 @@ tmp/
 .DS_Store
 docs/
 bruter
+TESTING.md
+ARCHITECTURE.md
+review/

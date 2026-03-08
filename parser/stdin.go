@@ -47,7 +47,6 @@ var portServiceMap = map[int]string{
 	6379:  "redis",
 	// 8080, 8443: http-basic excluded — manual only
 	9000:  "clickhouse",
-	9200:  "elasticsearch",
 	27017: "mongo",
 }
 
@@ -155,17 +154,19 @@ func mapService(svc string, port int) string {
 }
 
 // isKnownModule checks if a string is a valid bruter module name.
+// This list must match the keys in scanner/modules.Modules.
 func isKnownModule(name string) bool {
 	known := map[string]bool{
-		"amqp": true, "asterisk": true, "clickhouse": true, "cisco": true,
-		"cisco_enable": true, "etcd": true, "ftp": true,
-		"imap": true, "irc": true, "ldap": true, "ldaps": true,
-		"mongo": true, "mssql": true, "mysql": true, "oracle": true,
+		"amqp": true, "asterisk": true, "cisco": true, "cisco-enable": true,
+		"clickhouse": true, "cobaltstrike": true, "etcd": true, "ftp": true,
+		"http-basic": true, "imap": true, "irc": true, "ldap": true,
+		"ldaps": true, "mongo": true, "mssql": true, "mysql": true,
 		"pop3": true, "postgres": true, "rdp": true, "redis": true,
 		"rexec": true, "rlogin": true, "rsh": true, "rtsp": true,
 		"smb": true, "smpp": true, "smtp": true, "snmp": true,
 		"socks5": true, "ssh": true, "sshkey": true, "teamspeak": true,
-		"telnet": true, "vnc": true, "winrm": true, "xmpp": true,
+		"telnet": true, "vault": true, "vnc": true, "winrm": true,
+		"xmpp": true,
 	}
 	return known[name]
 }

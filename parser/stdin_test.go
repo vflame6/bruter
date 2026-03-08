@@ -116,6 +116,38 @@ func TestParseStdin_UnknownPort(t *testing.T) {
 	}
 }
 
+func TestParseStdin_DirectModuleNames(t *testing.T) {
+	// Modules passed directly as service name (e.g. from tools that output bruter module names)
+	input := `{"host":"10.0.0.1","port":80,"service":"http-basic"}
+{"host":"10.0.0.2","port":8200,"service":"vault"}
+{"host":"10.0.0.3","port":50050,"service":"cobaltstrike"}
+{"host":"10.0.0.4","port":23,"service":"cisco-enable"}`
+
+	targets, err := ParseStdin(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(targets) != 4 {
+		t.Fatalf("expected 4 targets, got %d", len(targets))
+	}
+
+	expected := []struct {
+		host    string
+		service string
+	}{
+		{"10.0.0.1", "http-basic"},
+		{"10.0.0.2", "vault"},
+		{"10.0.0.3", "cobaltstrike"},
+		{"10.0.0.4", "cisco-enable"},
+	}
+	for i, e := range expected {
+		if targets[i].Host != e.host || targets[i].Service != e.service {
+			t.Errorf("target[%d]: got host=%s service=%s, want host=%s service=%s",
+				i, targets[i].Host, targets[i].Service, e.host, e.service)
+		}
+	}
+}
+
 func TestParseStdin_IPv6PlainText(t *testing.T) {
 	// IPv6 with brackets
 	input := `[::1]:22`
