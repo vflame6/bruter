@@ -55,6 +55,10 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 	if s.Opts.Passwords != "" {
 		userPasswords = utils.LoadLines(s.Opts.Passwords)
 	}
+	var sshkeyPasswords []string
+	if s.Opts.Passwords != "" {
+		sshkeyPasswords = loadSSHKeyPaths(s.Opts.Passwords)
+	}
 
 	// Run each module group
 	for command, nmapTargets := range grouped {
@@ -76,7 +80,11 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 
 		// Select passwords per module: combine user-specified + defaults when both present
 		s.Opts.PasswordList = nil
-		if userPasswords != nil {
+		if command == "sshkey" {
+			if sshkeyPasswords != nil {
+				s.Opts.PasswordList = append(s.Opts.PasswordList, sshkeyPasswords...)
+			}
+		} else if userPasswords != nil {
 			s.Opts.PasswordList = append(s.Opts.PasswordList, userPasswords...)
 		}
 		if s.Opts.Defaults {

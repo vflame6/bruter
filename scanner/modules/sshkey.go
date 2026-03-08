@@ -3,7 +3,6 @@ package modules
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -20,12 +19,14 @@ func SSHKeyHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout 
 	addr := target.Addr()
 
 	// Load private key — either raw PEM or a file path.
+	// Key loading/parsing errors are credential failures (not network errors),
+	// so return (false, nil) to avoid marking the target as unreachable.
 	pemData := []byte(credential.Password)
 	if !bytes.HasPrefix(pemData, []byte("-----")) {
 		var err error
 		pemData, err = os.ReadFile(credential.Password)
 		if err != nil {
-			return false, err
+			return false, nil // bad key path — credential failure, not connectivity
 		}
 	}
 
@@ -34,7 +35,7 @@ func SSHKeyHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout 
 		// Try with empty passphrase (encrypted key with no passphrase set).
 		signer, err = ssh.ParsePrivateKeyWithPassphrase(pemData, nil)
 		if err != nil {
-			return false, fmt.Errorf("invalid key: %w", err)
+			return false, nil // unparseable key — credential failure, not connectivity
 		}
 	}
 

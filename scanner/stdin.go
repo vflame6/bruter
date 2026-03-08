@@ -52,9 +52,15 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 	}
 
 	// Pre-load passwords from file once (if user specified -p)
+	// Note: sshkey-specific loading is handled per-module below (command == "sshkey").
 	var userPasswords []string
 	if s.Opts.Passwords != "" {
 		userPasswords = utils.LoadLines(s.Opts.Passwords)
+	}
+	// Separate sshkey passwords loaded lazily per module to avoid mixing formats.
+	var sshkeyPasswords []string
+	if s.Opts.Passwords != "" {
+		sshkeyPasswords = loadSSHKeyPaths(s.Opts.Passwords)
 	}
 
 	// Run each module group
@@ -77,7 +83,11 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 
 		// Select passwords per module: combine user-specified + defaults when both present
 		s.Opts.PasswordList = nil
-		if userPasswords != nil {
+		if command == "sshkey" {
+			if sshkeyPasswords != nil {
+				s.Opts.PasswordList = append(s.Opts.PasswordList, sshkeyPasswords...)
+			}
+		} else if userPasswords != nil {
 			s.Opts.PasswordList = append(s.Opts.PasswordList, userPasswords...)
 		}
 		if s.Opts.Defaults {
