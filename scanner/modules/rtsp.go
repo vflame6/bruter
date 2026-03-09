@@ -13,16 +13,71 @@ import (
 	"github.com/vflame6/bruter/utils"
 )
 
-// rtspPaths lists common RTSP stream paths to try.
+// rtspPaths lists common RTSP stream paths to try during path discovery.
 // Many servers reject DESCRIBE on "/" with 400; real streams live under these paths.
 var rtspPaths = []string{"/", "/stream", "/live", "/cam", "/Streaming/Channels/101", "/h264Preview_01_main", "/1"}
 
-// RTSPHandler is an implementation of ModuleHandler for RTSP authentication.
-// Tries common stream paths until one responds with 200 or 401 (auth challenge).
-// For each viable path, tries Basic auth first, then falls back to Digest.
-func RTSPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
-	addr := target.Addr()
+// discoverRTSPPath probes the target to find a valid RTSP stream path.
+// A valid path is one that returns 200 (no auth) or 401 (auth required).
+// The discovered path is cached in target.Extra["rtsp_path"] for reuse.
+func discoverRTSPPath(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target) (string, error) {
+	// Check cache first
+	if path, ok := target.GetExtra("rtsp_path"); ok {
+		return path, nil
+	}
 
+	addr := target.Addr()
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+	reader := bufio.NewReader(conn)
+	cseq := 1
+
+	for _, path := range rtspPaths {
+		rtspURL := fmt.Sprintf("rtsp://%s%s", addr, path)
+		request := fmt.Sprintf(
+			"DESCRIBE %s RTSP/1.0\r\nCSeq: %d\r\nAccept: application/sdp\r\n\r\n",
+			rtspURL, cseq,
+		)
+		cseq++
+
+		if _, err = fmt.Fprint(conn, request); err != nil {
+			return "", err
+		}
+
+		code, _, err := readRTSPResponse(reader)
+		if err != nil {
+			return "", err
+		}
+
+		switch code {
+		case 200, 401:
+			// Valid path found — cache it
+			target.SetExtra("rtsp_path", path)
+			return path, nil
+		case 400, 404, 451, 453:
+			// Path not supported — try next
+			continue
+		}
+	}
+
+	return "", fmt.Errorf("no valid RTSP stream path found on %s", addr)
+}
+
+// RTSPHandler is an implementation of ModuleHandler for RTSP authentication.
+// Uses a cached stream path (discovered once per target) to avoid redundant path probing.
+// Tries Basic auth first, then falls back to Digest if a challenge is offered.
+func RTSPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	path, err := discoverRTSPPath(ctx, dialer, timeout, target)
+	if err != nil {
+		return false, err
+	}
+
+	addr := target.Addr()
 	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return false, err
@@ -30,78 +85,69 @@ func RTSPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout ti
 	defer func() { _ = conn.Close() }()
 
 	_ = conn.SetDeadline(time.Now().Add(timeout))
-
 	reader := bufio.NewReader(conn)
 	cseq := 1
 
-	for _, path := range rtspPaths {
-		rtspURL := fmt.Sprintf("rtsp://%s%s", addr, path)
+	rtspURL := fmt.Sprintf("rtsp://%s%s", addr, path)
 
-		// Try Basic auth
-		basicCreds := base64.StdEncoding.EncodeToString(
-			[]byte(credential.Username + ":" + credential.Password),
-		)
-		request := fmt.Sprintf(
-			"DESCRIBE %s RTSP/1.0\r\nCSeq: %d\r\nAuthorization: Basic %s\r\nAccept: application/sdp\r\n\r\n",
-			rtspURL, cseq, basicCreds,
+	// Try Basic auth
+	basicCreds := base64.StdEncoding.EncodeToString(
+		[]byte(credential.Username + ":" + credential.Password),
+	)
+	request := fmt.Sprintf(
+		"DESCRIBE %s RTSP/1.0\r\nCSeq: %d\r\nAuthorization: Basic %s\r\nAccept: application/sdp\r\n\r\n",
+		rtspURL, cseq, basicCreds,
+	)
+	cseq++
+
+	if _, err = fmt.Fprint(conn, request); err != nil {
+		return false, err
+	}
+
+	code, headers, err := readRTSPResponse(reader)
+	if err != nil {
+		return false, err
+	}
+
+	switch code {
+	case 200:
+		return true, nil
+	case 401:
+		// Check for Digest challenge in WWW-Authenticate header
+		wwwAuth := headers["www-authenticate"]
+		if !strings.HasPrefix(strings.ToLower(wwwAuth), "digest") {
+			return false, nil // Basic rejected, no Digest offered
+		}
+		// Try Digest auth
+		authHeader, err := buildDigestAuth(wwwAuth, credential.Username, credential.Password, "DESCRIBE", rtspURL)
+		if err != nil {
+			return false, nil // Can't parse challenge — treat as auth failure
+		}
+		digestReq := fmt.Sprintf(
+			"DESCRIBE %s RTSP/1.0\r\nCSeq: %d\r\nAuthorization: %s\r\nAccept: application/sdp\r\n\r\n",
+			rtspURL, cseq, authHeader,
 		)
 		cseq++
-
-		if _, err = fmt.Fprint(conn, request); err != nil {
+		if _, err = fmt.Fprint(conn, digestReq); err != nil {
 			return false, err
 		}
-
-		code, headers, err := readRTSPResponse(reader)
+		code2, _, err := readRTSPResponse(reader)
 		if err != nil {
 			return false, err
 		}
-
-		switch code {
+		switch code2 {
 		case 200:
 			return true, nil
-		case 401:
-			// Check for Digest challenge in WWW-Authenticate header
-			wwwAuth := headers["www-authenticate"]
-			if !strings.HasPrefix(strings.ToLower(wwwAuth), "digest") {
-				return false, nil // Basic rejected, no Digest offered
-			}
-			// Try Digest auth
-			authHeader, err := buildDigestAuth(wwwAuth, credential.Username, credential.Password, "DESCRIBE", rtspURL)
-			if err != nil {
-				return false, nil // Can't parse challenge — treat as auth failure
-			}
-			digestReq := fmt.Sprintf(
-				"DESCRIBE %s RTSP/1.0\r\nCSeq: %d\r\nAuthorization: %s\r\nAccept: application/sdp\r\n\r\n",
-				rtspURL, cseq, authHeader,
-			)
-			cseq++
-			if _, err = fmt.Fprint(conn, digestReq); err != nil {
-				return false, err
-			}
-			code2, _, err := readRTSPResponse(reader)
-			if err != nil {
-				return false, err
-			}
-			switch code2 {
-			case 200:
-				return true, nil
-			case 401, 403:
-				return false, nil
-			default:
-				return false, fmt.Errorf("unexpected RTSP status %d", code2)
-			}
-		case 403:
+		case 401, 403:
 			return false, nil
-		case 400, 404, 451, 453:
-			// Path not found or not supported — try next path
-			continue
 		default:
-			return false, fmt.Errorf("unexpected RTSP status %d", code)
+			return false, fmt.Errorf("unexpected RTSP status %d", code2)
 		}
+	case 403:
+		return false, nil
+	default:
+		return false, fmt.Errorf("unexpected RTSP status %d", code)
 	}
-
-	// All paths returned 400/404 — server doesn't expose any known stream path
-	return false, fmt.Errorf("no valid RTSP stream path found on %s", addr)
 }
 
 // readRTSPResponse reads an RTSP response status line and headers.

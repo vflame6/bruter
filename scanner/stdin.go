@@ -51,17 +51,14 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 		s.Opts.UsernameList = append(s.Opts.UsernameList, wordlists.DefaultUsernames...)
 	}
 
-	// Pre-load passwords from file once (if user specified -p)
-	// Note: sshkey-specific loading is handled per-module below (command == "sshkey").
+	// Pre-load passwords from file once (if user specified -p).
+	// sshkey passwords are loaded lazily only when needed.
 	var userPasswords []string
 	if s.Opts.Passwords != "" {
 		userPasswords = utils.LoadLines(s.Opts.Passwords)
 	}
-	// Separate sshkey passwords loaded lazily per module to avoid mixing formats.
 	var sshkeyPasswords []string
-	if s.Opts.Passwords != "" {
-		sshkeyPasswords = loadSSHKeyPaths(s.Opts.Passwords)
-	}
+	var sshkeyLoaded bool
 
 	// Run each module group
 	for command, stdinTargets := range grouped {
@@ -84,6 +81,10 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 		// Select passwords per module: combine user-specified + defaults when both present
 		s.Opts.PasswordList = nil
 		if command == "sshkey" {
+			if !sshkeyLoaded && s.Opts.Passwords != "" {
+				sshkeyPasswords = utils.LoadSSHKeyPaths(s.Opts.Passwords)
+				sshkeyLoaded = true
+			}
 			if sshkeyPasswords != nil {
 				s.Opts.PasswordList = append(s.Opts.PasswordList, sshkeyPasswords...)
 			}

@@ -68,6 +68,28 @@ type Target struct {
 	Success        bool
 	Retries        int
 	Mutex          sync.Mutex
+	Extra          map[string]string // module-specific data populated during probe (e.g. RTSP path)
+}
+
+// SetExtra stores a key-value pair in the target's Extra map (thread-safe via Mutex).
+func (t *Target) SetExtra(key, value string) {
+	t.Mutex.Lock()
+	defer t.Mutex.Unlock()
+	if t.Extra == nil {
+		t.Extra = make(map[string]string)
+	}
+	t.Extra[key] = value
+}
+
+// GetExtra retrieves a value from the target's Extra map (thread-safe via Mutex).
+func (t *Target) GetExtra(key string) (string, bool) {
+	t.Mutex.Lock()
+	defer t.Mutex.Unlock()
+	if t.Extra == nil {
+		return "", false
+	}
+	v, ok := t.Extra[key]
+	return v, ok
 }
 
 // Addr returns the target address as "host:port". The result is cached after the first call.

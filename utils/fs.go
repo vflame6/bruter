@@ -91,6 +91,31 @@ func ParseFileByLine(filename string) <-chan string {
 	return out
 }
 
+// LoadSSHKeyPaths handles -p for the sshkey module.
+// If the argument is a PEM key file (starts with "-----"), the path itself
+// becomes the single entry. If it's a plain text file of key paths, each
+// line is loaded. If it's not a file at all, it's returned as-is (could be
+// raw PEM passed on the command line).
+func LoadSSHKeyPaths(path string) []string {
+	if !IsFileExists(path) {
+		return []string{path}
+	}
+
+	// Peek at the file to decide whether it's a PEM key or a list of paths.
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	if bytes.HasPrefix(data, []byte("-----")) {
+		// It's a PEM key file — use the path as-is.
+		return []string{path}
+	}
+
+	// Otherwise treat it as a newline-separated list of key file paths.
+	return LoadLines(path)
+}
+
 // LoadLines reads all non-empty lines from a file into a slice.
 // If filename is not a real file, it returns a single-element slice.
 func LoadLines(filename string) []string {

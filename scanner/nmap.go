@@ -50,15 +50,14 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 		s.Opts.UsernameList = append(s.Opts.UsernameList, wordlists.DefaultUsernames...)
 	}
 
-	// Pre-load passwords from file once (if user specified -p)
+	// Pre-load passwords from file once (if user specified -p).
+	// sshkey passwords are loaded lazily only when needed.
 	var userPasswords []string
 	if s.Opts.Passwords != "" {
 		userPasswords = utils.LoadLines(s.Opts.Passwords)
 	}
 	var sshkeyPasswords []string
-	if s.Opts.Passwords != "" {
-		sshkeyPasswords = loadSSHKeyPaths(s.Opts.Passwords)
-	}
+	var sshkeyLoaded bool
 
 	// Run each module group
 	for command, nmapTargets := range grouped {
@@ -81,6 +80,10 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 		// Select passwords per module: combine user-specified + defaults when both present
 		s.Opts.PasswordList = nil
 		if command == "sshkey" {
+			if !sshkeyLoaded && s.Opts.Passwords != "" {
+				sshkeyPasswords = utils.LoadSSHKeyPaths(s.Opts.Passwords)
+				sshkeyLoaded = true
+			}
 			if sshkeyPasswords != nil {
 				s.Opts.PasswordList = append(s.Opts.PasswordList, sshkeyPasswords...)
 			}

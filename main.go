@@ -63,64 +63,45 @@ var (
 	jsonFlag    = app.Flag("json", "Output results as JSONL (one JSON object per line)").Short('j').Default("false").Bool()
 	outputFlag  = app.Flag("output", "Filename to write output in raw format").Short('o').Default("").String()
 
-	// available modules
-	// sort alphabetically
-
-	// amqp
-	allCommand      = app.Command("all", "Auto-detect modules from scan file (requires -n)")
-	amqpCommand     = app.Command("amqp", "AMQP module")
-	asteriskCommand = app.Command("asterisk", "Asterisk Manager Interface module (port 5038)")
-	// clickhouse
-	clickhouseCommand = app.Command("clickhouse", "ClickHouse module (native)")
-	// etcd
-	etcdCommand = app.Command("etcd", "etcd module")
-	// ftp
-	ftpCommand = app.Command("ftp", "FTP module")
-	// http-basic
-	httpBasicCommand = app.Command("http-basic", "HTTP Basic Auth module (port 80 / 443 TLS)")
-	// imap
-	imapCommand = app.Command("imap", "IMAP module (port 143 / 993 TLS)")
-	ircCommand  = app.Command("irc", "IRC server password module (port 6667)")
-	// cisco / telnet
+	// available modules (alphabetical)
+	allCommand          = app.Command("all", "Auto-detect modules from scan file (requires -n)")
+	amqpCommand         = app.Command("amqp", "AMQP module (port 5672)")
+	asteriskCommand     = app.Command("asterisk", "Asterisk Manager Interface module (port 5038)")
 	ciscoCommand        = app.Command("cisco", "Cisco IOS Telnet module (port 23)")
 	ciscoEnableCommand  = app.Command("cisco-enable", "Cisco IOS enable-mode password module (port 23)")
+	clickhouseCommand   = app.Command("clickhouse", "ClickHouse native protocol module (port 9000)")
 	cobaltStrikeCommand = app.Command("cobaltstrike", "Cobalt Strike team server module (port 50050)")
+	etcdCommand         = app.Command("etcd", "etcd module (port 2379)")
+	ftpCommand          = app.Command("ftp", "FTP module (port 21)")
+	httpBasicCommand    = app.Command("http-basic", "HTTP Basic Auth module (port 80 / 443 TLS)")
+	imapCommand         = app.Command("imap", "IMAP module (port 143 / 993 TLS)")
+	ircCommand          = app.Command("irc", "IRC server password module (port 6667)")
+	ldapCommand         = app.Command("ldap", "LDAP module (port 389 / 636 TLS)")
+	ldapsCommand        = app.Command("ldaps", "LDAPS module (port 636 TLS)")
+	mongoCommand        = app.Command("mongo", "MongoDB module (port 27017)")
+	mssqlCommand        = app.Command("mssql", "Microsoft SQL Server module (port 1433)")
+	mysqlCommand        = app.Command("mysql", "MySQL module (port 3306)")
+	pop3Command         = app.Command("pop3", "POP3 module (port 110 / 995 TLS)")
+	postgresCommand     = app.Command("postgres", "PostgreSQL module (port 5432)")
+	rdpCommand          = app.Command("rdp", "RDP NLA/CredSSP module (port 3389)")
+	redisCommand        = app.Command("redis", "Redis module (port 6379)")
+	rexecCommand        = app.Command("rexec", "BSD rexec module (port 512)")
+	rloginCommand       = app.Command("rlogin", "BSD rlogin module (port 513)")
+	rshCommand          = app.Command("rsh", "BSD rsh module (port 514)")
+	rtspCommand         = app.Command("rtsp", "RTSP Basic/Digest Auth module (port 554)")
+	smbCommand          = app.Command("smb", "SMB module (port 445)")
+	smppCommand         = app.Command("smpp", "SMPP module (port 2775)")
+	smtpCommand         = app.Command("smtp", "SMTP AUTH module (port 25 / 465 TLS / 587 STARTTLS)")
+	snmpCommand         = app.Command("snmp", "SNMP v1/v2c community string module (port 161 UDP)")
+	socks5Command       = app.Command("socks5", "SOCKS5 username/password authentication module (port 1080)")
+	sshCommand          = app.Command("ssh", "SSH module (port 22)")
+	sshkeyCommand       = app.Command("sshkey", "SSH public key authentication module (port 22)")
 	teamSpeakCommand    = app.Command("teamspeak", "TeamSpeak 3 ServerQuery module (port 10011)")
 	telnetCommand       = app.Command("telnet", "Telnet module (port 23 / TLS)")
-	// ldap
-	ldapCommand  = app.Command("ldap", "LDAP module (port 389 / 636 TLS)")
-	ldapsCommand = app.Command("ldaps", "LDAPS module (port 636 TLS)")
-	// mongodb
-	mongoCommand = app.Command("mongo", "MongoDB module")
-	// mssql
-	mssqlCommand = app.Command("mssql", "Microsoft SQL Server module (port 1433)")
-	// mysql
-	mysqlCommand = app.Command("mysql", "MySQL module (port 3306)")
-	// pop3
-	pop3Command = app.Command("pop3", "POP3 module (port 110 / 995 TLS)")
-	// postgres
-	postgresCommand = app.Command("postgres", "PostgreSQL module")
-	// redis
-	redisCommand  = app.Command("redis", "Redis module")
-	rexecCommand  = app.Command("rexec", "BSD rexec module (port 512)")
-	rloginCommand = app.Command("rlogin", "BSD rlogin module (port 513)")
-	rshCommand    = app.Command("rsh", "BSD rsh module (port 514)")
-	rtspCommand   = app.Command("rtsp", "RTSP Basic Auth module (port 554)")
-	// smpp
-	smbCommand    = app.Command("smb", "SMB module (port 445)")
-	socks5Command = app.Command("socks5", "SOCKS5 username/password authentication module (port 1080)")
-	snmpCommand   = app.Command("snmp", "SNMP v1/v2c community string module (port 161 UDP)")
-	smppCommand   = app.Command("smpp", "SMPP module")
-	// smtp
-	smtpCommand = app.Command("smtp", "SMTP AUTH module (port 25 / 465 TLS / 587 STARTTLS)")
-	// ssh
-	sshCommand    = app.Command("ssh", "SSH module")
-	sshkeyCommand = app.Command("sshkey", "SSH public key authentication module (port 22)")
-	// vault
-	vaultCommand = app.Command("vault", "HashiCorp Vault module (http)")
-	vncCommand   = app.Command("vnc", "VNC module (port 5900)")
-	winrmCommand = app.Command("winrm", "WinRM Basic Auth module (port 5985 / 5986 TLS)")
-	xmppCommand  = app.Command("xmpp", "XMPP SASL authentication module (port 5222)")
+	vaultCommand        = app.Command("vault", "HashiCorp Vault userpass module (port 8200)")
+	vncCommand          = app.Command("vnc", "VNC module (port 5900)")
+	winrmCommand        = app.Command("winrm", "WinRM Basic Auth module (port 5985 / 5986 TLS)")
+	xmppCommand         = app.Command("xmpp", "XMPP SASL authentication module (port 5222)")
 )
 
 // CustomUsageTemplate is a template for kingpin's help menu
