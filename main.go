@@ -17,7 +17,7 @@ import (
 const AUTHOR = "Maksim Radaev (@vflame6)"
 
 // VERSION should be linked to actual tag
-const VERSION = "v1.0.0"
+const VERSION = "v1.0.2"
 
 // BANNER format string. It is used in PrintBanner function with VERSION
 const BANNER = "    __               __           \n   / /_  _______  __/ /____  _____\n  / __ \\/ ___/ / / / __/ _ \\/ ___/\n / /_/ / /  / /_/ / /_/  __/ /    \n/_.___/_/   \\__,_/\\__/\\___/_/      %s\n                                  \nMade by %s\n\n"
@@ -38,16 +38,15 @@ var (
 	comboFlag    = app.Flag("combo", "Combo wordlist file with user:pass pairs, one per line").String()
 	defaultsFlag = app.Flag("defaults", "Use built-in default username and password wordlists (user-specified -u/-p take priority)").Default("false").Bool()
 
-
 	// optimization flags
 	concurrentServicesFlag = app.Flag("concurrent-services", "Number of services to scan in parallel when using 'all' command").Short('N').Default("5").Int()
 	parallelFlag           = app.Flag("concurrent-hosts", "Number of targets in parallel").Short('C').Default("32").Int()
 	threadsFlag            = app.Flag("concurrent-threads", "Number of parallel threads per target").Short('c').Default("10").Int()
-	delayFlag         = app.Flag("delay", "Delay between each attempt. Will always use single thread if set").Short('d').Default("0s").Duration()
-	timeoutFlag       = app.Flag("timeout", "Connection timeout in seconds").Default("5s").Duration()
-	stopOnSuccessFlag = app.Flag("stop-on-success", "Stop bruteforcing current host when first valid credentials found (-f per host, -F global)").Short('f').Default("false").Bool()
-	globalStopFlag    = app.Flag("stop-on-success-global", "Stop the entire run on first successful login across all hosts").Short('F').Default("false").Bool()
-	retryFlag         = app.Flag("max-retries", "Number of connection errors to stop bruteforce the host. Specify 0 to disable this behavior").Default("30").Int()
+	delayFlag              = app.Flag("delay", "Delay between each attempt. Will always use single thread if set").Short('d').Default("0s").Duration()
+	timeoutFlag            = app.Flag("timeout", "Connection timeout in seconds").Default("5s").Duration()
+	stopOnSuccessFlag      = app.Flag("stop-on-success", "Stop bruteforcing current host when first valid credentials found (-f per host, -F global)").Short('f').Default("false").Bool()
+	globalStopFlag         = app.Flag("stop-on-success-global", "Stop the entire run on first successful login across all hosts").Short('F').Default("false").Bool()
+	retryFlag              = app.Flag("max-retries", "Number of connection errors to stop bruteforce the host. Specify 0 to disable this behavior").Default("30").Int()
 
 	// connection flags
 	proxyFlag     = app.Flag("proxy", "SOCKS-proxy address to use for connection in format IP:PORT").Default("").String()
@@ -236,9 +235,9 @@ func main() {
 
 	// pass scanner options
 	options := scanner.Options{
-		Usernames:           *usernameFlag,
-		Passwords:           *passwordFlag,
-		Defaults:            *defaultsFlag,
+		Usernames: *usernameFlag,
+		Passwords: *passwordFlag,
+		Defaults:  *defaultsFlag,
 
 		Combo:               *comboFlag,
 		ConcurrentServices:  *concurrentServicesFlag,
