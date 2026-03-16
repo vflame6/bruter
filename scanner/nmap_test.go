@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -71,9 +72,12 @@ func TestRunNmap_ContextCancelled(t *testing.T) {
 	defer os.Remove(path)
 
 	s := &Scanner{
-		Opts:    &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
-		Targets: make(chan *modules.Target, 10),
-		Results: make(chan *Result, 10),
+		Opts:       &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
+		Targets:    make(chan *modules.Target, 10),
+		Results:    make(chan *Result, 10),
+		Attempts:   &atomic.Int64{},
+		Successes:  &atomic.Int64{},
+		globalDone: &atomic.Bool{},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -93,9 +97,12 @@ func TestRunNmap_ContextCancelled(t *testing.T) {
 
 func TestRunNmap_InvalidFile(t *testing.T) {
 	s := &Scanner{
-		Opts:    &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
-		Targets: make(chan *modules.Target, 10),
-		Results: make(chan *Result, 10),
+		Opts:       &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
+		Targets:    make(chan *modules.Target, 10),
+		Results:    make(chan *Result, 10),
+		Attempts:   &atomic.Int64{},
+		Successes:  &atomic.Int64{},
+		globalDone: &atomic.Bool{},
 	}
 
 	err := s.RunNmap(context.Background(), "/nonexistent/file.gnmap")
@@ -109,9 +116,12 @@ func TestRunNmapWithResults_ContextCancelled(t *testing.T) {
 	defer os.Remove(path)
 
 	s := &Scanner{
-		Opts:    &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
-		Targets: make(chan *modules.Target, 10),
-		Results: make(chan *Result, 10),
+		Opts:       &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
+		Targets:    make(chan *modules.Target, 10),
+		Results:    make(chan *Result, 10),
+		Attempts:   &atomic.Int64{},
+		Successes:  &atomic.Int64{},
+		globalDone: &atomic.Bool{},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
