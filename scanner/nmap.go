@@ -217,6 +217,40 @@ func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
 		}
 	}
 
+	// When --defaults is set, expand SSH targets to also run sshkey module.
+	// This tests both default passwords and known bad SSH keys (e.g. Debian
+	// weak keys) automatically. Only applies in all/nmap/stdin mode — when
+	// the user runs `bruter ssh` or `bruter sshkey` directly, only that
+	// specific module is used.
+	if s.Opts.Defaults {
+		for key, services := range hostMap {
+			for _, svc := range services {
+				if svc.command == "ssh" {
+					// Check sshkey isn't already present for this host
+					hasSshkey := false
+					for _, s := range services {
+						if s.command == "sshkey" {
+							hasSshkey = true
+							break
+						}
+					}
+					if !hasSshkey {
+						hostMap[key] = append(hostMap[key], hostService{
+							command: "sshkey",
+							target: &modules.Target{
+								IP:             svc.target.IP,
+								Port:           svc.target.Port,
+								OriginalTarget: svc.target.OriginalTarget,
+								Encryption:     true,
+							},
+						})
+					}
+					break
+				}
+			}
+		}
+	}
+
 	result := make([][]hostService, 0, len(hostOrder))
 	for _, key := range hostOrder {
 		result = append(result, hostMap[key])
