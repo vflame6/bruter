@@ -136,8 +136,8 @@ func (s *Scanner) printDashboard(cfg dashboardConfig) {
 		fmt.Printf(" [+] Threads per host:    %d\n", o.Threads)
 	} else {
 		fmt.Printf(" [+] Concurrent hosts:    %d\n", o.Parallel)
-		fmt.Printf(" [+] Concurrent services: %d\n", o.ConcurrentServices)
-		fmt.Printf(" [+] Concurrent threads:  %d\n", o.Threads)
+		fmt.Printf(" [+] Services per host:   %d\n", o.ConcurrentServices)
+		fmt.Printf(" [+] Threads per service: %d\n", o.Threads)
 	}
 
 	// Common options
