@@ -58,9 +58,30 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 		userPasswords = utils.LoadLines(s.Opts.Passwords)
 	}
 	var sshkeyPasswords []string
-	var sshkeyLoaded bool
+	if s.Opts.Passwords != "" {
+		sshkeyPasswords = utils.LoadSSHKeyPaths(s.Opts.Passwords)
+	}
 
-	// Run each module group
+	// Build default password list (non-sshkey) once
+	var defaultPasswords []string
+	if userPasswords != nil {
+		defaultPasswords = append(defaultPasswords, userPasswords...)
+	}
+	if s.Opts.Defaults {
+		defaultPasswords = append(defaultPasswords, wordlists.DefaultPasswords...)
+	}
+	// Set PasswordList for the dashboard (shows non-sshkey count)
+	s.Opts.PasswordList = defaultPasswords
+
+	// Print aggregate dashboard
+	if !logger.IsQuiet() {
+		s.printNmapConfig("stdin", totalTargets, len(grouped))
+	}
+
+	// Run modules concurrently, bounded by ConcurrentServices semaphore
+	sem := make(chan struct{}, s.Opts.ConcurrentServices)
+	var moduleWg sync.WaitGroup
+
 	for command, stdinTargets := range grouped {
 		if ctx.Err() != nil {
 			break
@@ -75,28 +96,17 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 			continue
 		}
 
-		logger.Infof("executing %s module (%d targets)", command, len(stdinTargets))
-		s.Opts.Command = command
-
-		// Select passwords per module: combine user-specified + defaults when both present
-		s.Opts.PasswordList = nil
+		// Build per-module password list to avoid race conditions
+		var passwords []string
 		if command == "sshkey" {
-			if !sshkeyLoaded && s.Opts.Passwords != "" {
-				sshkeyPasswords = utils.LoadSSHKeyPaths(s.Opts.Passwords)
-				sshkeyLoaded = true
-			}
 			if sshkeyPasswords != nil {
-				s.Opts.PasswordList = append(s.Opts.PasswordList, sshkeyPasswords...)
+				passwords = append(passwords, sshkeyPasswords...)
 			}
-		} else if userPasswords != nil {
-			s.Opts.PasswordList = append(s.Opts.PasswordList, userPasswords...)
-		}
-		if s.Opts.Defaults {
-			if command == "sshkey" {
-				s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultSSHKeys...)
-			} else {
-				s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultPasswords...)
+			if s.Opts.Defaults {
+				passwords = append(passwords, wordlists.DefaultSSHKeys...)
 			}
+		} else {
+			passwords = defaultPasswords
 		}
 
 		// Convert parser targets to scanner targets (resolve DNS)
@@ -104,9 +114,9 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 		for _, st := range stdinTargets {
 			ip := net.ParseIP(st.Host)
 			if ip == nil {
-				resolved, err := utils.LookupAddr(st.Host)
-				if err != nil {
-					logger.Debugf("can't resolve %s: %v", st.Host, err)
+				resolved, resolveErr := utils.LookupAddr(st.Host)
+				if resolveErr != nil {
+					logger.Debugf("can't resolve %s: %v", st.Host, resolveErr)
 					continue
 				}
 				ip = resolved
@@ -123,33 +133,48 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 			continue
 		}
 
-		// Feed targets into channel
-		targetCh := make(chan *modules.Target, len(scanTargets))
-		for _, t := range scanTargets {
-			targetCh <- t
-		}
-		close(targetCh)
+		// Acquire semaphore slot
+		sem <- struct{}{}
+		moduleWg.Add(1)
 
-		// Save and restore the main Targets channel
-		origTargets := s.Targets
-		s.Targets = targetCh
+		go func(command string, mod modules.Module, scanTargets []*modules.Target, passwords []string) {
+			defer moduleWg.Done()
+			defer func() { <-sem }()
 
-		// Determine parallelism for this batch
-		parallel := s.Opts.Parallel
-		if len(scanTargets) < parallel {
-			parallel = len(scanTargets)
-		}
+			logger.Infof("executing %s module (%d targets)", command, len(scanTargets))
 
-		// Run parallel handlers
-		var parallelWg sync.WaitGroup
-		for i := 0; i < parallel; i++ {
-			parallelWg.Add(1)
-			go s.ParallelHandler(ctx, &parallelWg, &mod)
-		}
-		parallelWg.Wait()
+			// Feed targets into channel
+			targetCh := make(chan *modules.Target, len(scanTargets))
+			for _, t := range scanTargets {
+				targetCh <- t
+			}
+			close(targetCh)
 
-		s.Targets = origTargets
+			// Create a per-module scanner copy for thread-safe options
+			modScanner := *s
+			modOpts := *s.Opts
+			modOpts.Command = command
+			modOpts.PasswordList = passwords
+			modScanner.Opts = &modOpts
+			modScanner.Targets = targetCh
+
+			// Determine parallelism for this batch
+			parallel := modOpts.Parallel
+			if len(scanTargets) < parallel {
+				parallel = len(scanTargets)
+			}
+
+			// Run parallel handlers
+			var parallelWg sync.WaitGroup
+			for i := 0; i < parallel; i++ {
+				parallelWg.Add(1)
+				go modScanner.ParallelHandler(ctx, &parallelWg, &mod)
+			}
+			parallelWg.Wait()
+		}(command, mod, scanTargets, passwords)
 	}
+
+	moduleWg.Wait()
 
 	// Close results channel so GetResults can finish draining.
 	// The caller (RunStdinWithResults) waits for GetResults and prints stats.
@@ -164,7 +189,22 @@ func (s *Scanner) RunStdinWithResults(ctx context.Context, r io.Reader) error {
 	resultsWg.Add(1)
 	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, &s.Successes, s.Opts.JSON)
 
+	// Start progress display (disabled in quiet mode).
+	var progress *Progress
+	if !logger.IsQuiet() {
+		totalCreds := int64(len(s.Opts.UsernameList))*int64(len(s.Opts.PasswordList)) + int64(len(s.Opts.ComboList))
+		progress = NewProgress(s, totalCreds)
+		logger.SetProgressClearer(progress.Clear)
+		progress.Start()
+	}
+
 	err := s.RunStdin(ctx, r)
+
+	// Stop progress display before printing final stats
+	if progress != nil {
+		progress.Stop()
+		logger.SetProgressClearer(nil)
+	}
 
 	// Wait for all results to be processed before reading counters.
 	resultsWg.Wait()
@@ -172,6 +212,10 @@ func (s *Scanner) RunStdinWithResults(ctx context.Context, r io.Reader) error {
 
 	logger.Infof("Done: %d credential pairs tried, %d successful logins found",
 		s.Attempts.Load(), s.Successes.Load())
+
+	if ctx.Err() != nil {
+		logger.Infof("Interrupted")
+	}
 
 	return err
 }

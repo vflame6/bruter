@@ -471,7 +471,7 @@ func TestNewScanner_InvalidRetries(t *testing.T) {
 }
 
 func TestNewScanner_ValidOptions(t *testing.T) {
-	s, err := NewScanner(&Options{Parallel: 2, Threads: 4, Timeout: 5 * time.Second})
+	s, err := NewScanner(&Options{ConcurrentServices: 5, Parallel: 2, Threads: 4, Timeout: 5 * time.Second})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

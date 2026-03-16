@@ -71,7 +71,7 @@ func TestRunNmap_ContextCancelled(t *testing.T) {
 	defer os.Remove(path)
 
 	s := &Scanner{
-		Opts:    &Options{Parallel: 1, Threads: 1, Timeout: time.Second},
+		Opts:    &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
 		Targets: make(chan *modules.Target, 10),
 		Results: make(chan *Result, 10),
 	}
@@ -93,7 +93,7 @@ func TestRunNmap_ContextCancelled(t *testing.T) {
 
 func TestRunNmap_InvalidFile(t *testing.T) {
 	s := &Scanner{
-		Opts:    &Options{Parallel: 1, Threads: 1, Timeout: time.Second},
+		Opts:    &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
 		Targets: make(chan *modules.Target, 10),
 		Results: make(chan *Result, 10),
 	}
@@ -109,7 +109,7 @@ func TestRunNmapWithResults_ContextCancelled(t *testing.T) {
 	defer os.Remove(path)
 
 	s := &Scanner{
-		Opts:    &Options{Parallel: 1, Threads: 1, Timeout: time.Second},
+		Opts:    &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
 		Targets: make(chan *modules.Target, 10),
 		Results: make(chan *Result, 10),
 	}

@@ -40,8 +40,9 @@ var (
 
 
 	// optimization flags
-	parallelFlag      = app.Flag("concurrent-hosts", "Number of targets in parallel").Short('C').Default("32").Int()
-	threadsFlag       = app.Flag("concurrent-threads", "Number of parallel threads per target").Short('c').Default("10").Int()
+	concurrentServicesFlag = app.Flag("concurrent-services", "Number of services to scan in parallel when using 'all' command").Short('N').Default("5").Int()
+	parallelFlag           = app.Flag("concurrent-hosts", "Number of targets in parallel").Short('C').Default("32").Int()
+	threadsFlag            = app.Flag("concurrent-threads", "Number of parallel threads per target").Short('c').Default("10").Int()
 	delayFlag         = app.Flag("delay", "Delay between each attempt. Will always use single thread if set").Short('d').Default("0s").Duration()
 	timeoutFlag       = app.Flag("timeout", "Connection timeout in seconds").Default("5s").Duration()
 	stopOnSuccessFlag = app.Flag("stop-on-success", "Stop bruteforcing current host when first valid credentials found (-f per host, -F global)").Short('f').Default("false").Bool()
@@ -240,6 +241,7 @@ func main() {
 		Defaults:            *defaultsFlag,
 
 		Combo:               *comboFlag,
+		ConcurrentServices:  *concurrentServicesFlag,
 		Parallel:            *parallelFlag,
 		Threads:             *threadsFlag,
 		Timeout:             *timeoutFlag,
