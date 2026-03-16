@@ -39,6 +39,7 @@ type Options struct {
 	ComboList           []modules.Credential // pre-loaded combo pairs (populated in Run)
 	Command             string
 	Timeout             time.Duration
+	ConcurrentServices  int
 	Parallel            int
 	Threads             int
 	Delay               time.Duration
@@ -125,13 +126,74 @@ func (s *Scanner) printConfig(command, targets string, targetCount int) {
 	fmt.Println("-------------------------------------------------------")
 }
 
+// printNmapConfig prints an aggregate configuration dashboard for nmap/stdin mode.
+func (s *Scanner) printNmapConfig(source string, totalTargets, totalServices int) {
+	o := s.Opts
+	userCount := len(o.UsernameList)
+	passCount := len(o.PasswordList)
+	comboCount := len(o.ComboList)
+	totalCreds := int64(userCount)*int64(passCount) + int64(comboCount)
+
+	fmt.Println("-------------------------------------------------------")
+	fmt.Printf(" [+] Source:            %s\n", source)
+	fmt.Printf(" [+] Services:          %d\n", totalServices)
+	fmt.Printf(" [+] Total targets:     %d\n", totalTargets)
+	if o.Usernames != "" && o.Defaults {
+		fmt.Printf(" [+] Usernames:         %s + built-in (%d)\n", o.Usernames, userCount)
+	} else if o.Usernames != "" {
+		fmt.Printf(" [+] Usernames:         %s (%d)\n", o.Usernames, userCount)
+	} else if o.Defaults && userCount > 0 {
+		fmt.Printf(" [+] Usernames:         built-in (%d)\n", userCount)
+	}
+	if o.Passwords != "" && o.Defaults {
+		fmt.Printf(" [+] Passwords:         %s + built-in (%d)\n", o.Passwords, passCount)
+	} else if o.Passwords != "" {
+		fmt.Printf(" [+] Passwords:         %s (%d)\n", o.Passwords, passCount)
+	} else if o.Defaults && passCount > 0 {
+		fmt.Printf(" [+] Passwords:         built-in (%d)\n", passCount)
+	}
+	if o.Combo != "" {
+		fmt.Printf(" [+] Combo file:        %s (%d)\n", o.Combo, comboCount)
+	}
+	fmt.Printf(" [+] Credential pairs:  %d (per service)\n", totalCreds)
+	fmt.Printf(" [+] Parallel hosts:    %d\n", o.Parallel)
+	fmt.Printf(" [+] Services per host: %d\n", o.ConcurrentServices)
+	fmt.Printf(" [+] Threads per service: %d\n", o.Threads)
+	fmt.Printf(" [+] Timeout:           %s\n", o.Timeout)
+	if o.Delay > 0 {
+		fmt.Printf(" [+] Delay:             %s\n", o.Delay)
+	}
+	if o.Proxy != "" {
+		fmt.Printf(" [+] Proxy:             %s\n", o.Proxy)
+	}
+	if o.OutputFileName != "" {
+		fmt.Printf(" [+] Output:            %s\n", o.OutputFileName)
+	}
+	if o.JSON {
+		fmt.Printf(" [+] Format:            JSONL\n")
+	}
+	if o.StopOnSuccess {
+		fmt.Printf(" [+] Stop on success:   yes\n")
+	}
+	if o.GlobalStop {
+		fmt.Printf(" [+] Global stop:       yes\n")
+	}
+	if o.Verbose {
+		fmt.Printf(" [+] Verbose:           yes\n")
+	}
+	if o.Iface != "" {
+		fmt.Printf(" [+] Interface:         %s\n", o.Iface)
+	}
+	fmt.Println("-------------------------------------------------------")
+}
+
 // NewScanner function creates new scanner object based on options
 func NewScanner(options *Options) (*Scanner, error) {
 	var outputFile *os.File
 	var err error
 
 	// validate options
-	if options.Parallel <= 0 || options.Threads <= 0 {
+	if options.ConcurrentServices <= 0 || options.Parallel <= 0 || options.Threads <= 0 {
 		return nil, errors.New("invalid numbers for concurrency")
 	}
 	if options.Retries < 0 {
