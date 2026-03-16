@@ -62,9 +62,12 @@ func newTestScanner(opts *Options) *Scanner {
 		opts.Threads = 1
 	}
 	return &Scanner{
-		Opts:    opts,
-		Targets: make(chan *modules.Target, 10),
-		Results: make(chan *Result, 10),
+		Opts:       opts,
+		Targets:    make(chan *modules.Target, 10),
+		Results:    make(chan *Result, 10),
+		Attempts:   &atomic.Int64{},
+		Successes:  &atomic.Int64{},
+		globalDone: &atomic.Bool{},
 	}
 }
 

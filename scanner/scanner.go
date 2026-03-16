@@ -24,9 +24,9 @@ type Scanner struct {
 	Opts       *Options
 	Targets    chan *modules.Target
 	Results    chan *Result
-	Attempts   atomic.Int64 // total credential pairs tried
-	Successes  atomic.Int64 // total successful logins found
-	globalDone atomic.Bool  // set true on first success when GlobalStop=true
+	Attempts   *atomic.Int64 // total credential pairs tried
+	Successes  *atomic.Int64 // total successful logins found
+	globalDone *atomic.Bool  // set true on first success when GlobalStop=true
 }
 
 type Options struct {
@@ -237,9 +237,12 @@ func NewScanner(options *Options) (*Scanner, error) {
 	results := make(chan *Result, options.Parallel*BufferMultiplier)
 
 	s := Scanner{
-		Opts:    options,
-		Targets: parallelTargets,
-		Results: results,
+		Opts:       options,
+		Targets:    parallelTargets,
+		Results:    results,
+		Attempts:   &atomic.Int64{},
+		Successes:  &atomic.Int64{},
+		globalDone: &atomic.Bool{},
 	}
 
 	return &s, nil
@@ -350,7 +353,7 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	// Bug 2 fix: wait for GetResults to finish draining before returning
 	var resultsWg sync.WaitGroup
 	resultsWg.Add(1)
-	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, &s.Successes, s.Opts.JSON)
+	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, s.Successes, s.Opts.JSON)
 	parallelWg.Wait()
 	close(s.Results)
 	resultsWg.Wait()

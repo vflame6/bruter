@@ -264,7 +264,7 @@ func (s *Scanner) buildPasswordLists() ([]string, []string) {
 func (s *Scanner) RunNmapWithResults(ctx context.Context, nmapFile string) error {
 	var resultsWg sync.WaitGroup
 	resultsWg.Add(1)
-	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, &s.Successes, s.Opts.JSON)
+	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, s.Successes, s.Opts.JSON)
 
 	// Start progress display (disabled in quiet mode).
 	var progress *Progress

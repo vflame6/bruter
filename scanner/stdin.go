@@ -92,7 +92,7 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 func (s *Scanner) RunStdinWithResults(ctx context.Context, r io.Reader) error {
 	var resultsWg sync.WaitGroup
 	resultsWg.Add(1)
-	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, &s.Successes, s.Opts.JSON)
+	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, s.Successes, s.Opts.JSON)
 
 	// Start progress display (disabled in quiet mode).
 	var progress *Progress
