@@ -26,9 +26,9 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 	for _, t := range targets {
 		serviceCounts[t.Service]++
 	}
-	logger.Infof("found %d targets across %d services from stdin", len(targets), len(serviceCounts))
+	logger.Debugf("found %d targets across %d services from stdin", len(targets), len(serviceCounts))
 	for svc, count := range serviceCounts {
-		logger.Infof("  %s: %d target(s)", svc, count)
+		logger.Debugf("  %s: %d target(s)", svc, count)
 	}
 
 	// Pre-load credentials
@@ -46,7 +46,7 @@ func (s *Scanner) RunStdin(ctx context.Context, r io.Reader) error {
 	hostGroups := s.groupByHost(targets)
 
 	uniqueHosts := len(hostGroups)
-	logger.Infof("scanning %d unique hosts", uniqueHosts)
+	logger.Debugf("scanning %d unique hosts", uniqueHosts)
 
 	parallel := s.Opts.Parallel
 	if uniqueHosts < parallel {

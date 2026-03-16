@@ -39,10 +39,6 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 	for _, t := range targets {
 		serviceCounts[t.Service]++
 	}
-	logger.Infof("found %d targets across %d services in %s", len(targets), len(serviceCounts), nmapFile)
-	for svc, count := range serviceCounts {
-		logger.Infof("  %s: %d target(s)", svc, count)
-	}
 
 	// Pre-load credentials
 	s.loadCredentials()
@@ -55,11 +51,16 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 		s.printNmapConfig(nmapFile, len(targets), len(serviceCounts))
 	}
 
+	logger.Debugf("found %d targets across %d services in %s", len(targets), len(serviceCounts), nmapFile)
+	for svc, count := range serviceCounts {
+		logger.Debugf("  %s: %d target(s)", svc, count)
+	}
+
 	// Group targets by host, preserving all services per host
 	hostGroups := s.groupByHost(targets)
 
 	uniqueHosts := len(hostGroups)
-	logger.Infof("scanning %d unique hosts", uniqueHosts)
+	logger.Debugf("scanning %d unique hosts", uniqueHosts)
 
 	// Process hosts in parallel, bounded by -C
 	parallel := s.Opts.Parallel

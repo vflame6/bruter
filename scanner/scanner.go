@@ -135,54 +135,54 @@ func (s *Scanner) printNmapConfig(source string, totalTargets, totalServices int
 	totalCreds := int64(userCount)*int64(passCount) + int64(comboCount)
 
 	fmt.Println("-------------------------------------------------------")
-	fmt.Printf(" [+] Source:            %s\n", source)
-	fmt.Printf(" [+] Services:          %d\n", totalServices)
-	fmt.Printf(" [+] Total targets:     %d\n", totalTargets)
+	fmt.Printf(" [+] Source:              %s\n", source)
+	fmt.Printf(" [+] Services:            %d\n", totalServices)
+	fmt.Printf(" [+] Total targets:       %d\n", totalTargets)
 	if o.Usernames != "" && o.Defaults {
-		fmt.Printf(" [+] Usernames:         %s + built-in (%d)\n", o.Usernames, userCount)
+		fmt.Printf(" [+] Usernames:           %s + built-in (%d)\n", o.Usernames, userCount)
 	} else if o.Usernames != "" {
-		fmt.Printf(" [+] Usernames:         %s (%d)\n", o.Usernames, userCount)
+		fmt.Printf(" [+] Usernames:           %s (%d)\n", o.Usernames, userCount)
 	} else if o.Defaults && userCount > 0 {
-		fmt.Printf(" [+] Usernames:         built-in (%d)\n", userCount)
+		fmt.Printf(" [+] Usernames:           built-in (%d)\n", userCount)
 	}
 	if o.Passwords != "" && o.Defaults {
-		fmt.Printf(" [+] Passwords:         %s + built-in (%d)\n", o.Passwords, passCount)
+		fmt.Printf(" [+] Passwords:           %s + built-in (%d)\n", o.Passwords, passCount)
 	} else if o.Passwords != "" {
-		fmt.Printf(" [+] Passwords:         %s (%d)\n", o.Passwords, passCount)
+		fmt.Printf(" [+] Passwords:           %s (%d)\n", o.Passwords, passCount)
 	} else if o.Defaults && passCount > 0 {
-		fmt.Printf(" [+] Passwords:         built-in (%d)\n", passCount)
+		fmt.Printf(" [+] Passwords:           built-in (%d)\n", passCount)
 	}
 	if o.Combo != "" {
-		fmt.Printf(" [+] Combo file:        %s (%d)\n", o.Combo, comboCount)
+		fmt.Printf(" [+] Combo file:          %s (%d)\n", o.Combo, comboCount)
 	}
-	fmt.Printf(" [+] Credential pairs:  %d (per service)\n", totalCreds)
-	fmt.Printf(" [+] Parallel hosts:    %d\n", o.Parallel)
-	fmt.Printf(" [+] Services per host: %d\n", o.ConcurrentServices)
-	fmt.Printf(" [+] Threads per service: %d\n", o.Threads)
-	fmt.Printf(" [+] Timeout:           %s\n", o.Timeout)
+	fmt.Printf(" [+] Credential pairs:    %d (per service)\n", totalCreds)
+	fmt.Printf(" [+] Concurrent hosts:    %d\n", o.Parallel)
+	fmt.Printf(" [+] Concurrent services: %d\n", o.ConcurrentServices)
+	fmt.Printf(" [+] Concurrent threads:  %d\n", o.Threads)
+	fmt.Printf(" [+] Timeout:             %s\n", o.Timeout)
 	if o.Delay > 0 {
-		fmt.Printf(" [+] Delay:             %s\n", o.Delay)
+		fmt.Printf(" [+] Delay:               %s\n", o.Delay)
 	}
 	if o.Proxy != "" {
-		fmt.Printf(" [+] Proxy:             %s\n", o.Proxy)
+		fmt.Printf(" [+] Proxy:               %s\n", o.Proxy)
 	}
 	if o.OutputFileName != "" {
-		fmt.Printf(" [+] Output:            %s\n", o.OutputFileName)
+		fmt.Printf(" [+] Output:              %s\n", o.OutputFileName)
 	}
 	if o.JSON {
-		fmt.Printf(" [+] Format:            JSONL\n")
+		fmt.Printf(" [+] Format:              JSONL\n")
 	}
 	if o.StopOnSuccess {
-		fmt.Printf(" [+] Stop on success:   yes\n")
+		fmt.Printf(" [+] Stop on success:     yes\n")
 	}
 	if o.GlobalStop {
-		fmt.Printf(" [+] Global stop:       yes\n")
+		fmt.Printf(" [+] Global stop:         yes\n")
 	}
 	if o.Verbose {
-		fmt.Printf(" [+] Verbose:           yes\n")
+		fmt.Printf(" [+] Verbose:             yes\n")
 	}
 	if o.Iface != "" {
-		fmt.Printf(" [+] Interface:         %s\n", o.Iface)
+		fmt.Printf(" [+] Interface:           %s\n", o.Iface)
 	}
 	fmt.Println("-------------------------------------------------------")
 }
@@ -565,5 +565,3 @@ func (s *Scanner) ThreadHandler(ctx context.Context, wg *sync.WaitGroup, credent
 		}
 	}
 }
-
-
