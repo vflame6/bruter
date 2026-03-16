@@ -188,7 +188,7 @@ func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
 			hostOrder = append(hostOrder, key)
 		}
 
-		hostMap[key] = append(hostMap[key], hostService{
+		svc := hostService{
 			command: t.Service,
 			target: &modules.Target{
 				IP:             ip,
@@ -196,7 +196,24 @@ func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
 				OriginalTarget: net.JoinHostPort(t.Host, strconv.Itoa(t.Port)),
 				Encryption:     true,
 			},
-		})
+		}
+
+		// Deduplicate: if same module already exists for this host, keep the
+		// higher port (e.g. 445 over 139 for SMB, 993 over 143 for IMAP).
+		// This avoids bruteforcing the same service twice on different ports.
+		replaced := false
+		for i, existing := range hostMap[key] {
+			if existing.command == svc.command {
+				if svc.target.Port > existing.target.Port {
+					hostMap[key][i] = svc
+				}
+				replaced = true
+				break
+			}
+		}
+		if !replaced {
+			hostMap[key] = append(hostMap[key], svc)
+		}
 	}
 
 	result := make([][]hostService, 0, len(hostOrder))
