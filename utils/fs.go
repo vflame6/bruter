@@ -132,9 +132,7 @@ func LoadLines(filename string) []string {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if line != "" {
-			lines = append(lines, line)
-		}
+		lines = append(lines, line)
 	}
 	if err := scanner.Err(); err != nil {
 		logger.Debugf("error while reading file %s: %v", filename, err)

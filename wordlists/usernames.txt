@@ -8,7 +8,6 @@ archive
 audit
 azureuser
 backup
-corp
 database
 db
 dbadmin
@@ -18,15 +17,13 @@ developer
 ec2-user
 employee
 ftp
-general
 guest
 helpdesk
-home
-info
 letmein
 mysql
 operator
 oracle
+password
 pi
 puppet
 root
@@ -35,7 +32,6 @@ security
 support
 svc
 sysadmin
-template
 test
 user
 vagrant

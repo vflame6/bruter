@@ -113,8 +113,10 @@ func (l *Logger) Fatal(v ...interface{}) {
 
 	if l.quiet {
 		fmt.Fprintln(l.output, msg)
-	} else {
+	} else if l.debug {
 		fmt.Fprintf(l.output, "%s [FATAL] %s\n", timestamp(), msg)
+	} else {
+		fmt.Fprintf(l.output, "[FATAL] %s\n", msg)
 	}
 
 	l.mu.Unlock()
@@ -130,8 +132,10 @@ func (l *Logger) Fatalf(format string, v ...interface{}) {
 
 	if l.quiet {
 		fmt.Fprintln(l.output, msg)
-	} else {
+	} else if l.debug {
 		fmt.Fprintf(l.output, "%s [FATAL] %s\n", timestamp(), msg)
+	} else {
+		fmt.Fprintf(l.output, "[FATAL] %s\n", msg)
 	}
 
 	l.mu.Unlock()
@@ -162,7 +166,12 @@ func (l *Logger) Info(v ...interface{}) {
 
 	l.clearLine()
 	msg := fmt.Sprint(v...)
-	fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
+
+	if l.debug {
+		fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
+	} else {
+		fmt.Fprintf(l.output, "[*] %s\n", msg)
+	}
 }
 
 // Infof logs a formatted informational message.
@@ -176,7 +185,12 @@ func (l *Logger) Infof(format string, v ...interface{}) {
 
 	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
-	fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
+
+	if l.debug {
+		fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
+	} else {
+		fmt.Fprintf(l.output, "[*] %s\n", msg)
+	}
 }
 
 // Info logs an informational message using the default logger.
@@ -232,7 +246,7 @@ func Debugf(format string, v ...interface{}) {
 // Success logs a success message.
 // In QUIET mode: prints message without prefix/timestamp.
 // In DEBUG mode: prints with timestamp and [+] prefix.
-// In normal mode: prints with timestamp and [+] prefix.
+// In normal mode: prints with [+] prefix.
 func (l *Logger) Success(v ...interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -242,8 +256,10 @@ func (l *Logger) Success(v ...interface{}) {
 
 	if l.quiet {
 		fmt.Fprintln(l.output, msg)
-	} else {
+	} else if l.debug {
 		fmt.Fprintf(l.output, "%s [+] %s\n", timestamp(), msg)
+	} else {
+		fmt.Fprintf(l.output, "[+] %s\n", msg)
 	}
 }
 
@@ -257,8 +273,10 @@ func (l *Logger) Successf(format string, v ...interface{}) {
 
 	if l.quiet {
 		fmt.Fprintln(l.output, msg)
-	} else {
+	} else if l.debug {
 		fmt.Fprintf(l.output, "%s [+] %s\n", timestamp(), msg)
+	} else {
+		fmt.Fprintf(l.output, "[+] %s\n", msg)
 	}
 }
 
@@ -270,6 +288,53 @@ func Success(v ...interface{}) {
 // Successf logs a formatted success message using the default logger.
 func Successf(format string, v ...interface{}) {
 	defaultLogger.Successf(format, v...)
+}
+
+// Fail logs a fail message.
+// In QUIET mode: prints message without prefix/timestamp.
+// In DEBUG mode: prints with timestamp and [-] prefix.
+// In normal mode: prints with [-] prefix.
+func (l *Logger) Fail(v ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.clearLine()
+	msg := fmt.Sprint(v...)
+
+	if l.quiet {
+		fmt.Fprintln(l.output, msg)
+	} else if l.debug {
+		fmt.Fprintf(l.output, "%s [-] %s\n", timestamp(), msg)
+	} else {
+		fmt.Fprintf(l.output, "[-] %s\n", msg)
+	}
+}
+
+// Failf logs a formatted fail message.
+func (l *Logger) Failf(format string, v ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.clearLine()
+	msg := fmt.Sprintf(format, v...)
+
+	if l.quiet {
+		fmt.Fprintln(l.output, msg)
+	} else if l.debug {
+		fmt.Fprintf(l.output, "%s [-] %s\n", timestamp(), msg)
+	} else {
+		fmt.Fprintf(l.output, "[-] %s\n", msg)
+	}
+}
+
+// Fail logs a fail message using the default logger.
+func Fail(v ...interface{}) {
+	defaultLogger.Fail(v...)
+}
+
+// Failf logs a formatted fail message using the default logger.
+func Failf(format string, v ...interface{}) {
+	defaultLogger.Failf(format, v...)
 }
 
 // IsQuiet returns whether the logger is in quiet mode.
@@ -306,7 +371,11 @@ func (l *Logger) Verbosef(format string, v ...interface{}) {
 	}
 	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
-	fmt.Fprintf(l.output, "%s [VERBOSE] %s\n", timestamp(), msg)
+	if l.debug {
+		fmt.Fprintf(l.output, "%s [VERBOSE] %s\n", timestamp(), msg)
+	} else {
+		fmt.Fprintf(l.output, "[VERBOSE] %s\n", msg)
+	}
 }
 
 // Verbosef logs a formatted verbose message using the default logger.

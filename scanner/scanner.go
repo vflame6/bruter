@@ -265,11 +265,10 @@ func (s *Scanner) runWithResults(ctx context.Context, scanFunc func() error) err
 	resultsWg.Wait()
 	s.Stop()
 
-	logger.Infof("Done: %d credential pairs tried, %d successful logins found",
-		s.Attempts.Load(), s.Successes.Load())
-
 	if ctx.Err() != nil {
-		logger.Infof("Interrupted")
+		logger.Infof("Interrupted: %d credential pairs tried, %d successful logins found", s.Attempts.Load(), s.Successes.Load())
+	} else {
+		logger.Infof("Done: %d credential pairs tried, %d successful logins found", s.Attempts.Load(), s.Successes.Load())
 	}
 
 	return err
@@ -593,7 +592,7 @@ func (s *Scanner) ThreadHandler(ctx context.Context, wg *sync.WaitGroup, credent
 			target.Mutex.Lock()
 			target.Retries++
 			if target.Retries == s.Opts.Retries {
-				logger.Infof("exceeded number of max retries on %s:%d, probably banned by the target", target.IP, target.Port)
+				logger.Failf("exceeded number of max retries on %s:%d, probably banned by the target", target.IP, target.Port)
 			}
 			target.Mutex.Unlock()
 		}
