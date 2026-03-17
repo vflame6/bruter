@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/parser"
 	"github.com/vflame6/bruter/scanner/modules"
 	"github.com/vflame6/bruter/utils"
-	"github.com/vflame6/bruter/wordlists"
 )
 
 // hostService pairs a resolved scanner target with its module name.
@@ -34,7 +32,21 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 		return nil
 	}
 
-	// Print service summary
+	return s.runAllMode(ctx, nmapFile, targets)
+}
+
+// RunNmapWithResults is like RunNmap but manages the results goroutine internally.
+func (s *Scanner) RunNmapWithResults(ctx context.Context, nmapFile string) error {
+	return s.runWithResults(ctx, func() error {
+		return s.RunNmap(ctx, nmapFile)
+	})
+}
+
+// runAllMode is the shared implementation for nmap and stdin auto-detect mode.
+// It loads credentials, prints the dashboard, groups targets by host, and
+// processes them with the host-first concurrency model.
+func (s *Scanner) runAllMode(ctx context.Context, source string, targets []parser.Target) error {
+	// Count services
 	serviceCounts := make(map[string]int)
 	for _, t := range targets {
 		serviceCounts[t.Service]++
@@ -48,27 +60,37 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 
 	// Print dashboard
 	if !logger.IsQuiet() {
-		s.printNmapConfig(nmapFile, len(targets), len(serviceCounts))
+		s.printDashboard(dashboardConfig{
+			Source:       source,
+			ServiceCount: len(serviceCounts),
+			TargetCount:  len(targets),
+		})
 	}
 
-	logger.Debugf("found %d targets across %d services in %s", len(targets), len(serviceCounts), nmapFile)
+	logger.Debugf("found %d targets across %d services in %s", len(targets), len(serviceCounts), source)
 	for svc, count := range serviceCounts {
 		logger.Debugf("  %s: %d target(s)", svc, count)
 	}
 
 	// Group targets by host, preserving all services per host
 	hostGroups := s.groupByHost(targets)
+	logger.Debugf("scanning %d unique hosts", len(hostGroups))
 
-	uniqueHosts := len(hostGroups)
-	logger.Debugf("scanning %d unique hosts", uniqueHosts)
+	// Process hosts in parallel
+	s.runHostGroups(ctx, hostGroups, defaultPasswords, sshkeyPasswords)
 
-	// Process hosts in parallel, bounded by -C
+	close(s.Results)
+	return nil
+}
+
+// runHostGroups processes host groups in parallel, bounded by -C (concurrent hosts).
+// Each host runs up to -N services concurrently via processHost.
+func (s *Scanner) runHostGroups(ctx context.Context, hostGroups [][]hostService, defaultPasswords, sshkeyPasswords []string) {
 	parallel := s.Opts.Parallel
-	if uniqueHosts < parallel {
-		parallel = uniqueHosts
+	if len(hostGroups) < parallel {
+		parallel = len(hostGroups)
 	}
 
-	// Feed host groups into a channel
 	hostCh := make(chan []hostService, parallel*BufferMultiplier)
 	go func() {
 		for _, services := range hostGroups {
@@ -81,7 +103,6 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 		close(hostCh)
 	}()
 
-	// Launch host workers
 	var hostWg sync.WaitGroup
 	for i := 0; i < parallel; i++ {
 		hostWg.Add(1)
@@ -100,9 +121,6 @@ func (s *Scanner) RunNmap(ctx context.Context, nmapFile string) error {
 	}
 
 	hostWg.Wait()
-	close(s.Results)
-
-	return nil
 }
 
 // processHost runs up to ConcurrentServices modules in parallel for a single host.
@@ -166,11 +184,11 @@ func (s *Scanner) processHost(ctx context.Context, services []hostService, defau
 
 // groupByHost groups parsed targets by host IP/hostname, resolving DNS,
 // and returns a slice of host groups (each group = all services on that host).
+// It deduplicates same-module targets per host (keeps higher port) and
+// expands SSH to include sshkey when --defaults is set.
 func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
-	// Use a map to group by resolved IP string
 	type hostKey string
 	hostMap := make(map[hostKey][]hostService)
-	// Preserve insertion order
 	var hostOrder []hostKey
 
 	for _, t := range targets {
@@ -201,7 +219,6 @@ func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
 
 		// Deduplicate: if same module already exists for this host, keep the
 		// higher port (e.g. 445 over 139 for SMB, 993 over 143 for IMAP).
-		// This avoids bruteforcing the same service twice on different ports.
 		replaced := false
 		for i, existing := range hostMap[key] {
 			if existing.command == svc.command {
@@ -218,18 +235,13 @@ func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
 	}
 
 	// When --defaults is set, expand SSH targets to also run sshkey module.
-	// This tests both default passwords and known bad SSH keys (e.g. Debian
-	// weak keys) automatically. Only applies in all/nmap/stdin mode — when
-	// the user runs `bruter ssh` or `bruter sshkey` directly, only that
-	// specific module is used.
 	if s.Opts.Defaults {
 		for key, services := range hostMap {
 			for _, svc := range services {
 				if svc.command == "ssh" {
-					// Check sshkey isn't already present for this host
 					hasSshkey := false
-					for _, s := range services {
-						if s.command == "sshkey" {
+					for _, existing := range services {
+						if existing.command == "sshkey" {
 							hasSshkey = true
 							break
 						}
@@ -256,96 +268,6 @@ func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
 		result = append(result, hostMap[key])
 	}
 	return result
-}
-
-// loadCredentials pre-loads usernames, passwords, and combo lists into Options.
-func (s *Scanner) loadCredentials() {
-	if s.Opts.Usernames != "" {
-		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
-	}
-	if s.Opts.Defaults {
-		s.Opts.UsernameList = append(s.Opts.UsernameList, wordlists.DefaultUsernames...)
-	}
-
-	if s.Opts.Combo != "" {
-		for _, line := range utils.LoadLines(s.Opts.Combo) {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				s.Opts.ComboList = append(s.Opts.ComboList, modules.Credential{
-					Username: parts[0],
-					Password: parts[1],
-				})
-			}
-		}
-	}
-}
-
-// buildPasswordLists creates the default and sshkey password lists.
-// Returns (defaultPasswords, sshkeyPasswords).
-func (s *Scanner) buildPasswordLists() ([]string, []string) {
-	var userPasswords []string
-	if s.Opts.Passwords != "" {
-		userPasswords = utils.LoadLines(s.Opts.Passwords)
-	}
-
-	// Default (non-sshkey) passwords
-	var defaultPasswords []string
-	if userPasswords != nil {
-		defaultPasswords = append(defaultPasswords, userPasswords...)
-	}
-	if s.Opts.Defaults {
-		defaultPasswords = append(defaultPasswords, wordlists.DefaultPasswords...)
-	}
-
-	// SSH key paths
-	var sshkeyPasswords []string
-	if s.Opts.Passwords != "" {
-		sshkeyPasswords = utils.LoadSSHKeyPaths(s.Opts.Passwords)
-	}
-	if s.Opts.Defaults {
-		sshkeyPasswords = append(sshkeyPasswords, wordlists.DefaultSSHKeys...)
-	}
-
-	// Set on Options for dashboard display
-	s.Opts.PasswordList = defaultPasswords
-
-	return defaultPasswords, sshkeyPasswords
-}
-
-// RunNmapWithResults is like RunNmap but manages the results goroutine internally.
-func (s *Scanner) RunNmapWithResults(ctx context.Context, nmapFile string) error {
-	var resultsWg sync.WaitGroup
-	resultsWg.Add(1)
-	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, s.Successes, s.Opts.JSON)
-
-	// Start progress display (disabled in quiet mode).
-	var progress *Progress
-	if !logger.IsQuiet() {
-		totalCreds := int64(len(s.Opts.UsernameList))*int64(len(s.Opts.PasswordList)) + int64(len(s.Opts.ComboList))
-		progress = NewProgress(s, totalCreds)
-		logger.SetProgressClearer(progress.Clear)
-		progress.Start()
-	}
-
-	err := s.RunNmap(ctx, nmapFile)
-
-	// Stop progress display before printing final stats
-	if progress != nil {
-		progress.Stop()
-		logger.SetProgressClearer(nil)
-	}
-
-	resultsWg.Wait()
-	s.Stop()
-
-	logger.Infof("Done: %d credential pairs tried, %d successful logins found",
-		s.Attempts.Load(), s.Successes.Load())
-
-	if ctx.Err() != nil {
-		logger.Infof("Interrupted")
-	}
-
-	return err
 }
 
 // NmapSummary returns a formatted summary of what would be scanned from an nmap file.

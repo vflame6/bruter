@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vflame6/bruter/logger"
-	"github.com/vflame6/bruter/scanner/modules"
-	"github.com/vflame6/bruter/utils"
-	"github.com/vflame6/bruter/wordlists"
 	"net"
 	"os"
 	"strconv"
@@ -15,6 +11,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/scanner/modules"
+	"github.com/vflame6/bruter/utils"
+	"github.com/vflame6/bruter/wordlists"
 )
 
 // BufferMultiplier defines the multiply value for Golang channel buffers
@@ -67,67 +68,22 @@ type Result struct {
 	Timestamp      time.Time // time of successful authentication
 }
 
-// printConfig prints a puredns-style configuration dashboard before the scan starts.
-func (s *Scanner) printConfig(command, targets string, targetCount int) {
-	o := s.Opts
-	userCount := len(o.UsernameList)
-	passCount := len(o.PasswordList)
-	comboCount := len(o.ComboList)
-	totalCreds := int64(userCount)*int64(passCount) + int64(comboCount)
+// dashboardConfig holds mode-specific info for the configuration dashboard.
+type dashboardConfig struct {
+	// Solo mode fields
+	Module    string // module name (e.g. "ftp")
+	Targets   string // target file or host string
+	HostCount int    // number of hosts
 
-	fmt.Println("-------------------------------------------------------")
-	fmt.Printf(" [+] Module:           %s\n", command)
-	fmt.Printf(" [+] Targets:          %s (%d host(s))\n", targets, targetCount)
-	if o.Usernames != "" && o.Defaults {
-		fmt.Printf(" [+] Usernames:        %s + built-in (%d)\n", o.Usernames, userCount)
-	} else if o.Usernames != "" {
-		fmt.Printf(" [+] Usernames:        %s (%d)\n", o.Usernames, userCount)
-	} else if o.Defaults && userCount > 0 {
-		fmt.Printf(" [+] Usernames:        built-in (%d)\n", userCount)
-	}
-	if o.Passwords != "" && o.Defaults {
-		fmt.Printf(" [+] Passwords:        %s + built-in (%d)\n", o.Passwords, passCount)
-	} else if o.Passwords != "" {
-		fmt.Printf(" [+] Passwords:        %s (%d)\n", o.Passwords, passCount)
-	} else if o.Defaults && passCount > 0 {
-		fmt.Printf(" [+] Passwords:        built-in (%d)\n", passCount)
-	}
-	if o.Combo != "" {
-		fmt.Printf(" [+] Combo file:       %s (%d)\n", o.Combo, comboCount)
-	}
-	fmt.Printf(" [+] Credential pairs: %d\n", totalCreds)
-	fmt.Printf(" [+] Threads per host:          %d\n", o.Threads)
-	fmt.Printf(" [+] Parallel hosts:   %d\n", o.Parallel)
-	fmt.Printf(" [+] Timeout:          %s\n", o.Timeout)
-	if o.Delay > 0 {
-		fmt.Printf(" [+] Delay:            %s\n", o.Delay)
-	}
-	if o.Proxy != "" {
-		fmt.Printf(" [+] Proxy:            %s\n", o.Proxy)
-	}
-	if o.OutputFileName != "" {
-		fmt.Printf(" [+] Output:           %s\n", o.OutputFileName)
-	}
-	if o.JSON {
-		fmt.Printf(" [+] Format:           JSONL\n")
-	}
-	if o.StopOnSuccess {
-		fmt.Printf(" [+] Stop on success:  yes\n")
-	}
-	if o.GlobalStop {
-		fmt.Printf(" [+] Global stop on success:      yes\n")
-	}
-	if o.Verbose {
-		fmt.Printf(" [+] Verbose:          yes\n")
-	}
-	if o.Iface != "" {
-		fmt.Printf(" [+] Interface:        %s\n", o.Iface)
-	}
-	fmt.Println("-------------------------------------------------------")
+	// Nmap/stdin mode fields
+	Source       string // scan file path or "stdin"
+	ServiceCount int    // number of distinct services
+	TargetCount  int    // total service:port targets
 }
 
-// printNmapConfig prints an aggregate configuration dashboard for nmap/stdin mode.
-func (s *Scanner) printNmapConfig(source string, totalTargets, totalServices int) {
+// printDashboard prints a configuration dashboard before the scan starts.
+// Works for both solo module mode and all/nmap/stdin mode.
+func (s *Scanner) printDashboard(cfg dashboardConfig) {
 	o := s.Opts
 	userCount := len(o.UsernameList)
 	passCount := len(o.PasswordList)
@@ -135,9 +91,20 @@ func (s *Scanner) printNmapConfig(source string, totalTargets, totalServices int
 	totalCreds := int64(userCount)*int64(passCount) + int64(comboCount)
 
 	fmt.Println("-------------------------------------------------------")
-	fmt.Printf(" [+] Source:              %s\n", source)
-	fmt.Printf(" [+] Services:            %d\n", totalServices)
-	fmt.Printf(" [+] Total targets:       %d\n", totalTargets)
+
+	// Mode-specific header
+	if cfg.Module != "" {
+		// Solo module mode
+		fmt.Printf(" [+] Module:              %s\n", cfg.Module)
+		fmt.Printf(" [+] Targets:             %s (%d host(s))\n", cfg.Targets, cfg.HostCount)
+	} else {
+		// Nmap/stdin mode
+		fmt.Printf(" [+] Source:              %s\n", cfg.Source)
+		fmt.Printf(" [+] Services:            %d\n", cfg.ServiceCount)
+		fmt.Printf(" [+] Total targets:       %d\n", cfg.TargetCount)
+	}
+
+	// Credentials (shared)
 	if o.Usernames != "" && o.Defaults {
 		fmt.Printf(" [+] Usernames:           %s + built-in (%d)\n", o.Usernames, userCount)
 	} else if o.Usernames != "" {
@@ -155,10 +122,25 @@ func (s *Scanner) printNmapConfig(source string, totalTargets, totalServices int
 	if o.Combo != "" {
 		fmt.Printf(" [+] Combo file:          %s (%d)\n", o.Combo, comboCount)
 	}
-	fmt.Printf(" [+] Credential pairs:    %d (per service)\n", totalCreds)
-	fmt.Printf(" [+] Concurrent hosts:    %d\n", o.Parallel)
-	fmt.Printf(" [+] Concurrent services: %d\n", o.ConcurrentServices)
-	fmt.Printf(" [+] Concurrent threads:  %d\n", o.Threads)
+
+	// Credential count
+	if cfg.Module != "" {
+		fmt.Printf(" [+] Credential pairs:    %d\n", totalCreds)
+	} else {
+		fmt.Printf(" [+] Credential pairs:    %d (per service)\n", totalCreds)
+	}
+
+	// Concurrency (mode-dependent)
+	if cfg.Module != "" {
+		fmt.Printf(" [+] Concurrent hosts:    %d\n", o.Parallel)
+		fmt.Printf(" [+] Threads per host:    %d\n", o.Threads)
+	} else {
+		fmt.Printf(" [+] Concurrent hosts:    %d\n", o.Parallel)
+		fmt.Printf(" [+] Services per host:   %d\n", o.ConcurrentServices)
+		fmt.Printf(" [+] Threads per service: %d\n", o.Threads)
+	}
+
+	// Common options
 	fmt.Printf(" [+] Timeout:             %s\n", o.Timeout)
 	if o.Delay > 0 {
 		fmt.Printf(" [+] Delay:               %s\n", o.Delay)
@@ -185,6 +167,112 @@ func (s *Scanner) printNmapConfig(source string, totalTargets, totalServices int
 		fmt.Printf(" [+] Interface:           %s\n", o.Iface)
 	}
 	fmt.Println("-------------------------------------------------------")
+}
+
+// loadCredentials pre-loads usernames, passwords, and combo lists into Options.
+// For sshkey module, passwords are loaded as SSH key paths.
+func (s *Scanner) loadCredentials() {
+	if s.Opts.Usernames != "" {
+		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
+	}
+	if s.Opts.Defaults {
+		s.Opts.UsernameList = append(s.Opts.UsernameList, wordlists.DefaultUsernames...)
+	}
+
+	if s.Opts.Passwords != "" {
+		if s.Opts.Command == "sshkey" {
+			s.Opts.PasswordList = utils.LoadSSHKeyPaths(s.Opts.Passwords)
+		} else {
+			s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
+		}
+	}
+	if s.Opts.Defaults {
+		if s.Opts.Command == "sshkey" {
+			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultSSHKeys...)
+		} else {
+			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultPasswords...)
+		}
+	}
+
+	if s.Opts.Combo != "" {
+		for _, line := range utils.LoadLines(s.Opts.Combo) {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				s.Opts.ComboList = append(s.Opts.ComboList, modules.Credential{
+					Username: parts[0],
+					Password: parts[1],
+				})
+			}
+		}
+	}
+}
+
+// buildPasswordLists creates separate default and sshkey password lists for nmap/stdin mode.
+// Returns (defaultPasswords, sshkeyPasswords).
+func (s *Scanner) buildPasswordLists() ([]string, []string) {
+	var userPasswords []string
+	if s.Opts.Passwords != "" {
+		userPasswords = utils.LoadLines(s.Opts.Passwords)
+	}
+
+	// Default (non-sshkey) passwords
+	var defaultPasswords []string
+	if userPasswords != nil {
+		defaultPasswords = append(defaultPasswords, userPasswords...)
+	}
+	if s.Opts.Defaults {
+		defaultPasswords = append(defaultPasswords, wordlists.DefaultPasswords...)
+	}
+
+	// SSH key paths
+	var sshkeyPasswords []string
+	if s.Opts.Passwords != "" {
+		sshkeyPasswords = utils.LoadSSHKeyPaths(s.Opts.Passwords)
+	}
+	if s.Opts.Defaults {
+		sshkeyPasswords = append(sshkeyPasswords, wordlists.DefaultSSHKeys...)
+	}
+
+	// Set on Options for dashboard display
+	s.Opts.PasswordList = defaultPasswords
+
+	return defaultPasswords, sshkeyPasswords
+}
+
+// runWithResults wraps a scan function with progress display, results collection,
+// and final stats — shared boilerplate for RunNmapWithResults and RunStdinWithResults.
+func (s *Scanner) runWithResults(ctx context.Context, scanFunc func() error) error {
+	var resultsWg sync.WaitGroup
+	resultsWg.Add(1)
+	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, s.Successes, s.Opts.JSON)
+
+	// Start progress display (disabled in quiet mode).
+	var progress *Progress
+	if !logger.IsQuiet() {
+		totalCreds := int64(len(s.Opts.UsernameList))*int64(len(s.Opts.PasswordList)) + int64(len(s.Opts.ComboList))
+		progress = NewProgress(s, totalCreds)
+		logger.SetProgressClearer(progress.Clear)
+		progress.Start()
+	}
+
+	err := scanFunc()
+
+	if progress != nil {
+		progress.Stop()
+		logger.SetProgressClearer(nil)
+	}
+
+	resultsWg.Wait()
+	s.Stop()
+
+	logger.Infof("Done: %d credential pairs tried, %d successful logins found",
+		s.Attempts.Load(), s.Successes.Load())
+
+	if ctx.Err() != nil {
+		logger.Infof("Interrupted")
+	}
+
+	return err
 }
 
 // NewScanner function creates new scanner object based on options
@@ -255,7 +343,7 @@ func (s *Scanner) Stop() {
 	}
 }
 
-// Run method is used to handle parallel execution
+// Run method is used to handle parallel execution for a single module.
 func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	var count int
 	var err error
@@ -283,45 +371,15 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	}
 
 	// pre-load credentials into memory once
-	// -u/-p and --defaults combine when both are specified
-	if s.Opts.Usernames != "" {
-		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
-	}
-	if s.Opts.Defaults {
-		s.Opts.UsernameList = append(s.Opts.UsernameList, wordlists.DefaultUsernames...)
-	}
-	if s.Opts.Passwords != "" {
-		if s.Opts.Command == "sshkey" {
-			s.Opts.PasswordList = utils.LoadSSHKeyPaths(s.Opts.Passwords)
-		} else {
-			s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
-		}
-	}
-	if s.Opts.Defaults {
-		if s.Opts.Command == "sshkey" {
-			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultSSHKeys...)
-		} else {
-			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultPasswords...)
-		}
-	}
-
-	// load combo wordlist if provided
-	if s.Opts.Combo != "" {
-		for _, line := range utils.LoadLines(s.Opts.Combo) {
-			// split on first colon only (password may contain colons)
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				s.Opts.ComboList = append(s.Opts.ComboList, modules.Credential{
-					Username: parts[0],
-					Password: parts[1],
-				})
-			}
-		}
-	}
+	s.loadCredentials()
 
 	// print startup configuration dashboard
 	if !logger.IsQuiet() {
-		s.printConfig(command, targets, count)
+		s.printDashboard(dashboardConfig{
+			Module:    command,
+			Targets:   targets,
+			HostCount: count,
+		})
 	}
 
 	// show which module is executed
@@ -350,7 +408,7 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 		go s.ParallelHandler(ctx, &parallelWg, &c)
 	}
 
-	// Bug 2 fix: wait for GetResults to finish draining before returning
+	// wait for GetResults to finish draining before returning
 	var resultsWg sync.WaitGroup
 	resultsWg.Add(1)
 	go GetResults(s.Results, s.Opts.OutputFile, &resultsWg, s.Successes, s.Opts.JSON)
@@ -364,10 +422,10 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 		logger.SetProgressClearer(nil)
 	}
 
-	// Fix 2 & 4: flush/close output file after GetResults has finished draining
+	// flush/close output file after GetResults has finished draining
 	s.Stop()
 
-	// Fix 3: print exit stats on normal exit and on cancellation
+	// print exit stats on normal exit and on cancellation
 	logger.Infof("Done: %d credential pairs tried, %d successful logins found",
 		s.Attempts.Load(), s.Successes.Load())
 
@@ -427,7 +485,6 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 		}
 
 		// send credentials to threads
-		// Bug 3 fix: pass a done channel so SendCredentials exits when threads stop early
 		credentials := make(chan *modules.Credential, s.Opts.Threads*BufferMultiplier)
 		done := make(chan struct{})
 		go SendCredentials(ctx, credentials, s.Opts.UsernameList, s.Opts.PasswordList, s.Opts.ComboList, done)
