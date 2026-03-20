@@ -5,7 +5,7 @@ go 1.25.7
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.43.0
 	github.com/alecthomas/kingpin/v2 v2.4.0
-	github.com/go-ldap/ldap/v3 v3.4.12
+	github.com/go-ldap/ldap/v3 v3.4.13
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gosnmp/gosnmp v1.43.2
 	github.com/hirochachacha/go-smb2 v1.1.0
