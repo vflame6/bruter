@@ -10,7 +10,7 @@ require (
 	github.com/gosnmp/gosnmp v1.43.2
 	github.com/hirochachacha/go-smb2 v1.1.0
 	github.com/jlaffaye/ftp v0.2.0
-	github.com/lib/pq v1.11.2
+	github.com/lib/pq v1.12.0
 	github.com/linxGnu/gosmpp v0.3.1
 	github.com/mattn/go-isatty v0.0.20
 	github.com/microsoft/go-mssqldb v1.9.8
