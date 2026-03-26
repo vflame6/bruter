@@ -15,7 +15,7 @@ Created by Maksim Radaev/[@vflame6](https://github.com/vflame6)
 
 ---
 
-`bruter` is a fast, concurrent network services bruteforce tool written in Go. It supports 36 protocols, scan file auto-detection, and flexible wordlist options — built for pentesters who need reliable credential testing at scale.
+`bruter` is a fast, concurrent network services bruteforce tool written in Go. It supports 53 protocols, scan file auto-detection, and flexible wordlist options — built for pentesters who need reliable credential testing at scale.
 
 ## Features
 
@@ -32,16 +32,17 @@ Created by Maksim Radaev/[@vflame6](https://github.com/vflame6)
 
 | Category | Modules |
 |----------|---------|
-| **Remote Access** | `ssh`, `sshkey`, `rdp`, `winrm`, `telnet`, `rexec`, `rlogin`, `rsh`, `vnc` |
-| **Databases** | `mysql`, `mssql`, `postgres`, `mongo`, `redis`, `clickhouse`, `etcd` |
-| **Mail** | `smtp`, `imap`, `pop3` |
-| **Web / HTTP** | `http-basic`, `vault` |
+| **Remote Access** | `ssh`, `sshkey`, `rdp`, `winrm`, `telnet`, `rexec`, `rlogin`, `rsh`, `vnc`, `radmin`, `vmauthd` |
+| **Databases** | `mysql`, `mssql`, `postgres`, `oracle`, `mongo`, `redis`, `clickhouse`, `cassandra`, `neo4j`, `etcd`, `influxdb`, `firebird`, `memcached`, `couchdb`, `elasticsearch` |
+| **Mail** | `smtp`, `smtp-enum`, `imap`, `pop3`, `nntp` |
+| **Web / HTTP** | `http-basic`, `http-form`, `http-proxy`, `vault` |
 | **Directory** | `ldap`, `ldaps` |
-| **File Sharing** | `ftp`, `smb` |
+| **File Sharing** | `ftp`, `smb`, `svn` |
 | **Messaging** | `irc`, `xmpp`, `smpp`, `amqp` |
-| **Network** | `socks5`, `snmp`, `rtsp` |
-| **VoIP** | `asterisk`, `teamspeak` |
+| **Network** | `socks5`, `snmp`, `rtsp`, `rpcap` |
+| **VoIP** | `asterisk`, `teamspeak`, `sip` |
 | **Cisco** | `cisco`, `cisco-enable` |
+| **Industrial** | `s7` |
 | **Other** | `cobaltstrike` |
 
 ## Usage
@@ -85,7 +86,7 @@ Flags:
   -o, --output=""              Filename to write output in raw format
       --[no-]version           Show application version.
 
-Commands: all amqp asterisk cisco cisco-enable clickhouse cobaltstrike etcd ftp http-basic imap irc ldap ldaps mongo mssql mysql pop3 postgres rdp redis rexec rlogin rsh rtsp smb smpp smtp snmp socks5 ssh sshkey teamspeak telnet vault vnc winrm xmpp 
+Commands: all amqp asterisk cassandra cisco cisco-enable clickhouse cobaltstrike couchdb elasticsearch etcd firebird ftp http-basic http-form http-proxy imap influxdb irc ldap ldaps memcached mongo mssql mysql neo4j nntp oracle pop3 postgres radmin rdp redis rexec rlogin rpcap rsh rtsp s7 sip smb smpp smtp smtp-enum snmp socks5 ssh sshkey svn teamspeak telnet vault vmauthd vnc winrm xmpp 
 ```
 
 ### Quick Examples
