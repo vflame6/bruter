@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
 	"sync"
 
@@ -52,6 +53,13 @@ func (s *Scanner) runAllMode(ctx context.Context, source string, targets []parse
 		serviceCounts[t.Service]++
 	}
 
+	// Collect sorted service names for dashboard
+	serviceNames := make([]string, 0, len(serviceCounts))
+	for svc := range serviceCounts {
+		serviceNames = append(serviceNames, svc)
+	}
+	sort.Strings(serviceNames)
+
 	// Pre-load credentials
 	s.loadCredentials()
 
@@ -64,6 +72,7 @@ func (s *Scanner) runAllMode(ctx context.Context, source string, targets []parse
 			Source:       source,
 			ServiceCount: len(serviceCounts),
 			TargetCount:  len(targets),
+			ServiceNames: serviceNames,
 		})
 	}
 

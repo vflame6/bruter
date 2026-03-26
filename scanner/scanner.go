@@ -76,9 +76,10 @@ type dashboardConfig struct {
 	HostCount int    // number of hosts
 
 	// Nmap/stdin mode fields
-	Source       string // scan file path or "stdin"
-	ServiceCount int    // number of distinct services
-	TargetCount  int    // total service:port targets
+	Source       string   // scan file path or "stdin"
+	ServiceCount int      // number of distinct services
+	TargetCount  int      // total service:port targets
+	ServiceNames []string // identified service names (sorted)
 }
 
 // printDashboard prints a configuration dashboard before the scan starts.
@@ -100,7 +101,7 @@ func (s *Scanner) printDashboard(cfg dashboardConfig) {
 	} else {
 		// Nmap/stdin mode
 		fmt.Printf(" [+] Source:              %s\n", cfg.Source)
-		fmt.Printf(" [+] Services:            %d\n", cfg.ServiceCount)
+		fmt.Printf(" [+] Services:            %s (%d)\n", strings.Join(cfg.ServiceNames, ", "), cfg.ServiceCount)
 		fmt.Printf(" [+] Total targets:       %d\n", cfg.TargetCount)
 	}
 
