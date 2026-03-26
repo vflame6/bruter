@@ -215,7 +215,9 @@ func main() {
 	// parse program arguments
 	command := ParseArgs()
 
-	// Detect stdin pipe
+	// Detect stdin pipe — but only use it when no explicit target/nmap flag is given.
+	// This prevents stdin from hijacking the run when CLI args are provided
+	// (e.g. when invoked from automation tools that pipe stdin).
 	stdinMode := utils.HasStdin()
 
 	// all command requires -n flag or stdin
@@ -223,6 +225,16 @@ func main() {
 	if nmapMode && *nmapFlag == "" && !stdinMode {
 		fmt.Fprintln(os.Stderr, "error: 'all' command requires --nmap/-n scan file or piped stdin, try --help")
 		os.Exit(1)
+	}
+
+	// If explicit --target is provided, CLI wins over stdin
+	if *targetFlag != "" {
+		stdinMode = false
+	}
+
+	// In "all" mode, --nmap flag wins over stdin
+	if nmapMode && *nmapFlag != "" {
+		stdinMode = false
 	}
 
 	// Validate: in normal mode, --target is required (unless stdin)
