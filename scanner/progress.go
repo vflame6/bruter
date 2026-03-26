@@ -82,8 +82,9 @@ func (p *Progress) render() {
 	// build status line
 	var line string
 	if p.totalAttempts > 0 {
-		line = fmt.Sprintf("\r\033[K[%s] %d/%d attempts | %.1f/s | %d found",
-			elapsedStr, attempts, p.totalAttempts, speed, successes)
+		pct := float64(attempts) / float64(p.totalAttempts) * 100
+		line = fmt.Sprintf("\r\033[K[%s] %d/%d (%.1f%%) | %.1f/s | %d found",
+			elapsedStr, attempts, p.totalAttempts, pct, speed, successes)
 	} else {
 		line = fmt.Sprintf("\r\033[K[%s] %d attempts | %.1f/s | %d found",
 			elapsedStr, attempts, speed, successes)
