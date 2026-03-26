@@ -57,6 +57,11 @@ type Options struct {
 	JSON                bool   // --json: output results as JSONL
 	Iface               string // --iface: bind outgoing connections to this interface
 	GlobalStop          bool   // --global-stop: stop entire run on first success across all hosts
+	NoStats             bool   // --no-stats: disable progress bar
+	UserAsPass          bool   // --user-as-pass: try username as password
+	Blank               bool   // --blank: try empty password
+	Reversed            bool   // --reversed: try reversed username as password
+	ServiceFilter       string // --service: filter services in all mode
 }
 
 type Result struct {
@@ -171,6 +176,15 @@ func (s *Scanner) printDashboard(cfg dashboardConfig) {
 	fmt.Println("-------------------------------------------------------")
 }
 
+// reverseString returns the input string reversed.
+func reverseString(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
+}
+
 // loadCredentials pre-loads usernames, passwords, and combo lists into Options.
 // For sshkey module, passwords are loaded as SSH key paths.
 func (s *Scanner) loadCredentials() {
@@ -206,6 +220,24 @@ func (s *Scanner) loadCredentials() {
 				})
 			}
 		}
+	}
+
+	// Generate extra credential pairs from usernames.
+	// These are prepended to ComboList so they're tried first (quick wins).
+	var extraCreds []modules.Credential
+	for _, user := range s.Opts.UsernameList {
+		if s.Opts.Blank {
+			extraCreds = append(extraCreds, modules.Credential{Username: user, Password: ""})
+		}
+		if s.Opts.UserAsPass {
+			extraCreds = append(extraCreds, modules.Credential{Username: user, Password: user})
+		}
+		if s.Opts.Reversed {
+			extraCreds = append(extraCreds, modules.Credential{Username: user, Password: reverseString(user)})
+		}
+	}
+	if len(extraCreds) > 0 {
+		s.Opts.ComboList = append(extraCreds, s.Opts.ComboList...)
 	}
 }
 
@@ -383,9 +415,9 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 		s.Opts.Parallel = count
 	}
 
-	// start progress display (disabled in quiet mode)
+	// start progress display (disabled in quiet or no-stats mode)
 	var progress *Progress
-	if !logger.IsQuiet() {
+	if !logger.IsQuiet() && !s.Opts.NoStats {
 		totalCreds := int64(len(s.Opts.UsernameList))*int64(len(s.Opts.PasswordList)) + int64(len(s.Opts.ComboList))
 		progress = NewProgress(s, totalCreds, s.TargetCount)
 		logger.SetProgressClearer(progress.Clear)

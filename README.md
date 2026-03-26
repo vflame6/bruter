@@ -61,15 +61,20 @@ bruter is a network services bruteforce tool.
 Flags:
   -h, --[no-]help              Show context-sensitive help (also try --help-long and --help-man).
   -t, --target=TARGET          Target host or file with targets. Format host or host:port, one per line
-  -n, --nmap=NMAP              Scan output file (nmap GNMAP/XML, Nessus .nessus, Nexpose XML — auto-detected). Use with 'all' command.
+  -n, --input-file=INPUT-FILE  Scan output file (nmap GNMAP/XML, Nessus .nessus, Nexpose XML — auto-detected). Use with 'all' command.
   -u, --username=USERNAME      Username or file with usernames
   -p, --password=PASSWORD      Password or file with passwords
       --combo=COMBO            Combo wordlist file with user:pass pairs, one per line
       --[no-]defaults          Use built-in default username and password wordlists (user-specified -u/-p take priority)
-  -C, --concurrent-hosts=32    Number of targets in parallel
-  -c, --concurrent-threads=10  Number of parallel threads per target
+      --[no-]user-as-pass      Try username as password for each user
+      --[no-]blank             Try blank/empty password for each user
+      --[no-]reversed          Try reversed username as password for each user
+  -N, --concurrent-services=4  Number of services to scan on host in parallel ('all' only)
+  -C, --concurrent-hosts=32    Number of hosts in parallel
+  -c, --concurrent-threads=10  Number of parallel threads per service
+      --[no-]no-stats          Disable progress bar for better performance
   -d, --delay=0s               Delay between each attempt. Will always use single thread if set
-      --timeout=5s             Connection timeout in seconds
+      --timeout=10s            Connection timeout in seconds
   -f, --[no-]stop-on-success   Stop bruteforcing current host when first valid credentials found (-f per host, -F global)
   -F, --[no-]stop-on-success-global  
                                Stop the entire run on first successful login across all hosts
@@ -77,8 +82,9 @@ Flags:
       --proxy=""               SOCKS-proxy address to use for connection in format IP:PORT
       --proxy-auth=""          Proxy username and password in format username:password
   -I, --iface=""               Network interface to bind outgoing connections to (e.g. eth0)
-      --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"  
-                               User-Agent for HTTP connections
+      --user-agent="..."       User-Agent for HTTP connections
+  -s, --service=""             Filter services in 'all' mode (comma-separated, e.g. ftp,ssh,smb)
+  -L, --[no-]list-services     List all supported services and exit
   -q, --[no-]quiet             Enable quiet mode, print results only
   -D, --[no-]debug             Enable debug mode, print all logs
   -v, --[no-]verbose           Enable verbose mode, log every attempt with timestamp
@@ -116,14 +122,38 @@ nmap -sV -oG scan.gnmap 10.0.0.0/24
 bruter all -n scan.gnmap --defaults
 ```
 
+**Filter specific services from scan results:**
+
+```shell
+bruter all -n scan.gnmap --defaults -s ssh,ftp,rdp
+```
+
+**Quick credential checks (username as password, blank, reversed):**
+
+```shell
+bruter ssh -t 10.0.0.5 -u users.txt --user-as-pass --blank --reversed
+```
+
+**List all supported services:**
+
+```shell
+bruter -L
+```
+
+**Comma-separated targets:**
+
+```shell
+bruter ssh -t 192.168.1.1,192.168.1.2,192.168.1.3 -u root --defaults
+```
+
 ### Target Format
 
-Targets use `host` or `host:port` format. If port is omitted, the module default is used.
+Targets use `host` or `host:port` format. If port is omitted, the module default is used. Multiple targets can be comma-separated or listed in a file (one per line).
 
 ```
 192.168.0.11
 192.168.0.12:2222
-10.0.0.0/24
+10.0.0.1,10.0.0.2,10.0.0.3
 ```
 
 ## Installation

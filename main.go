@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/vflame6/bruter/logger"
 	"github.com/vflame6/bruter/scanner"
+	"github.com/vflame6/bruter/scanner/modules"
 	"github.com/vflame6/bruter/utils"
 )
 
@@ -30,18 +32,22 @@ var (
 	targetFlag = app.Flag("target", "Target host or file with targets. Format host or host:port, one per line").Short('t').String()
 
 	// scan input (nmap, nessus, nexpose — auto-detected)
-	nmapFlag = app.Flag("nmap", "Scan output file (nmap GNMAP/XML, Nessus .nessus, Nexpose XML — auto-detected). Use with 'all' command.").Short('n').String()
+	nmapFlag = app.Flag("input-file", "Scan output file (nmap GNMAP/XML, Nessus .nessus, Nexpose XML — auto-detected). Use with 'all' command.").Short('n').String()
 
 	// wordlist flags
-	usernameFlag = app.Flag("username", "Username or file with usernames").Short('u').String()
-	passwordFlag = app.Flag("password", "Password or file with passwords").Short('p').String()
-	comboFlag    = app.Flag("combo", "Combo wordlist file with user:pass pairs, one per line").String()
-	defaultsFlag = app.Flag("defaults", "Use built-in default username and password wordlists (user-specified -u/-p take priority)").Default("false").Bool()
+	usernameFlag  = app.Flag("username", "Username or file with usernames").Short('u').String()
+	passwordFlag  = app.Flag("password", "Password or file with passwords").Short('p').String()
+	comboFlag     = app.Flag("combo", "Combo wordlist file with user:pass pairs, one per line").String()
+	defaultsFlag  = app.Flag("defaults", "Use built-in default username and password wordlists (user-specified -u/-p take priority)").Default("false").Bool()
+	userAsPassFlag = app.Flag("user-as-pass", "Try username as password for each user").Default("false").Bool()
+	blankFlag      = app.Flag("blank", "Try blank/empty password for each user").Default("false").Bool()
+	reversedFlag   = app.Flag("reversed", "Try reversed username as password for each user").Default("false").Bool()
 
 	// optimization flags
 	concurrentServicesFlag = app.Flag("concurrent-services", "Number of services to scan on host in parallel ('all' only)").Short('N').Default("4").Int()
 	parallelFlag           = app.Flag("concurrent-hosts", "Number of hosts in parallel").Short('C').Default("32").Int()
 	threadsFlag            = app.Flag("concurrent-threads", "Number of parallel threads per service").Short('c').Default("10").Int()
+	noStatsFlag            = app.Flag("no-stats", "Disable progress bar for better performance").Default("false").Bool()
 	delayFlag              = app.Flag("delay", "Delay between each attempt. Will always use single thread if set").Short('d').Default("0s").Duration()
 	timeoutFlag            = app.Flag("timeout", "Connection timeout in seconds").Default("10s").Duration()
 	stopOnSuccessFlag      = app.Flag("stop-on-success", "Stop bruteforcing current host when first valid credentials found (-f per host, -F global)").Short('f').Default("false").Bool()
@@ -55,6 +61,10 @@ var (
 
 	// http flags
 	userAgentFlag = app.Flag("user-agent", "User-Agent for HTTP connections").Default("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36").String()
+
+	// service filter
+	serviceFilterFlag = app.Flag("service", "Filter services in 'all' mode (comma-separated, e.g. ftp,ssh,smb)").Short('s').Default("").String()
+	listServicesFlag  = app.Flag("list-services", "List all supported services and exit").Short('L').Default("false").Bool()
 
 	// output options
 	quietFlag   = app.Flag("quiet", "Enable quiet mode, print results only").Short('q').Default("false").Bool()
@@ -180,29 +190,47 @@ func ParseArgs() string {
 		app.FatalUsage(err.Error())
 	}
 
-	// Check if --version was requested
+	// Check if --version, --help, or --list-services was requested
 	if ctx.SelectedCommand == nil {
-		// Check for --version or --help flags
+		// Check for flags that work without a command
 		for _, elem := range ctx.Elements {
 			if flag, ok := elem.Clause.(*kingpin.FlagClause); ok {
-				if flag.Model().Name == "version" ||
-					flag.Model().Name == "help" ||
-					flag.Model().Name == "completion-script-zsh" ||
-					flag.Model().Name == "completion-script-bash" {
+				switch flag.Model().Name {
+				case "version", "help", "completion-script-zsh", "completion-script-bash":
 					// Let kingpin handle --version, --help and --completion-script-*
 					app.Parse(os.Args[1:])
+					os.Exit(0)
+				case "list-services":
+					printServices()
 					os.Exit(0)
 				}
 			}
 		}
 
-		// No command and no --version/--help, show usage
+		// No command and no --version/--help/--list-services, show usage
 		app.Usage(os.Args[1:])
 		os.Exit(0)
 	}
 
 	// Now do the full parse which validates required flags
 	return kingpin.MustParse(app.Parse(os.Args[1:]))
+}
+
+// printServices prints all supported modules with their default ports.
+func printServices() {
+	names := make([]string, 0, len(modules.Modules))
+	for name := range modules.Modules {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	fmt.Printf("%-20s %s\n", "SERVICE", "DEFAULT PORT")
+	fmt.Printf("%-20s %s\n", "-------", "------------")
+	for _, name := range names {
+		mod := modules.Modules[name]
+		fmt.Printf("%-20s %d\n", name, mod.DefaultPort)
+	}
+	fmt.Printf("\n%d services available\n", len(names))
 }
 
 func main() {
@@ -223,7 +251,13 @@ func main() {
 	// all command requires -n flag or stdin
 	nmapMode := command == "all"
 	if nmapMode && *nmapFlag == "" && !stdinMode {
-		fmt.Fprintln(os.Stderr, "error: 'all' command requires --nmap/-n scan file or piped stdin, try --help")
+		fmt.Fprintln(os.Stderr, "error: 'all' command requires --input-file/-n scan file or piped stdin, try --help")
+		os.Exit(1)
+	}
+
+	// -s only valid with "all" command
+	if *serviceFilterFlag != "" && !nmapMode {
+		fmt.Fprintln(os.Stderr, "error: --service/-s can only be used with 'all' command, try --help")
 		os.Exit(1)
 	}
 
@@ -243,9 +277,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Validate: credentials are required in both modes (unless --combo or --defaults is provided)
-	if *comboFlag == "" && !*defaultsFlag && (*usernameFlag == "" || *passwordFlag == "") {
-		fmt.Fprintln(os.Stderr, "error: provide --username and --password, --combo, or --defaults, try --help")
+	// Validate: credentials are required in both modes (unless --combo, --defaults, or credential mutation flags are provided)
+	hasCredMutation := *userAsPassFlag || *blankFlag || *reversedFlag
+	if *comboFlag == "" && !*defaultsFlag && !hasCredMutation && (*usernameFlag == "" || *passwordFlag == "") {
+		fmt.Fprintln(os.Stderr, "error: provide --username and --password, --combo, --defaults, or credential flags (--user-as-pass/--blank/--reversed), try --help")
+		os.Exit(1)
+	}
+	// Credential mutations require usernames
+	if hasCredMutation && *usernameFlag == "" && !*defaultsFlag {
+		fmt.Fprintln(os.Stderr, "error: --user-as-pass/--blank/--reversed require --username or --defaults, try --help")
 		os.Exit(1)
 	}
 
@@ -265,9 +305,12 @@ func main() {
 
 	// pass scanner options
 	options := scanner.Options{
-		Usernames: *usernameFlag,
-		Passwords: *passwordFlag,
-		Defaults:  *defaultsFlag,
+		Usernames:  *usernameFlag,
+		Passwords:  *passwordFlag,
+		Defaults:   *defaultsFlag,
+		UserAsPass: *userAsPassFlag,
+		Blank:      *blankFlag,
+		Reversed:   *reversedFlag,
 
 		Combo:               *comboFlag,
 		ConcurrentServices:  *concurrentServicesFlag,
@@ -285,6 +328,8 @@ func main() {
 		Verbose:             *verboseFlag,
 		JSON:                *jsonFlag,
 		Iface:               *ifaceFlag,
+		NoStats:             *noStatsFlag,
+		ServiceFilter:       *serviceFilterFlag,
 	}
 	// try to create scanner
 	s, err := scanner.NewScanner(&options)

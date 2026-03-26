@@ -6,6 +6,7 @@ import (
 	"net"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/vflame6/bruter/logger"
@@ -47,6 +48,29 @@ func (s *Scanner) RunNmapWithResults(ctx context.Context, nmapFile string) error
 // It loads credentials, prints the dashboard, groups targets by host, and
 // processes them with the host-first concurrency model.
 func (s *Scanner) runAllMode(ctx context.Context, source string, targets []parser.Target) error {
+	// Apply service filter if specified
+	if s.Opts.ServiceFilter != "" {
+		allowed := make(map[string]bool)
+		for _, svc := range strings.Split(s.Opts.ServiceFilter, ",") {
+			svc = strings.TrimSpace(svc)
+			if svc != "" {
+				allowed[svc] = true
+			}
+		}
+		var filtered []parser.Target
+		for _, t := range targets {
+			if allowed[t.Service] {
+				filtered = append(filtered, t)
+			}
+		}
+		if len(filtered) == 0 {
+			logger.Infof("no targets match service filter: %s", s.Opts.ServiceFilter)
+			close(s.Results)
+			return nil
+		}
+		targets = filtered
+	}
+
 	// Count services
 	serviceCounts := make(map[string]int)
 	for _, t := range targets {
@@ -79,9 +103,9 @@ func (s *Scanner) runAllMode(ctx context.Context, source string, targets []parse
 		})
 	}
 
-	// Start progress display now that target count and credentials are known
+	// Start progress display (disabled in quiet or no-stats mode)
 	var progress *Progress
-	if !logger.IsQuiet() {
+	if !logger.IsQuiet() && !s.Opts.NoStats {
 		totalCreds := int64(len(s.Opts.UsernameList))*int64(len(s.Opts.PasswordList)) + int64(len(s.Opts.ComboList))
 		progress = NewProgress(s, totalCreds, s.TargetCount)
 		logger.SetProgressClearer(progress.Clear)
