@@ -47,7 +47,18 @@ var portServiceMap = map[int]string{
 	6379:  "redis",
 	// 8080, 8443: http-basic excluded — manual only
 	902:   "vmauthd",
+	2002:  "rpcap",
+	3050:  "firebird",
+	3690:  "svn",
+	4899:  "radmin",
+	5060:  "sip",
+	5984:  "couchdb",
+	7687:  "neo4j",
+	8086:  "influxdb",
 	9000:  "clickhouse",
+	9042:  "cassandra",
+	9200:  "elasticsearch",
+	11211: "memcached",
 	27017: "mongo",
 }
 
