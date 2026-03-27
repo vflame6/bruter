@@ -35,9 +35,9 @@ func HTTPProxyHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeo
 		"GET http://www.example.com/ HTTP/1.0\r\n"+
 			"Host: www.example.com\r\n"+
 			"Proxy-Authorization: Basic %s\r\n"+
-			"User-Agent: Mozilla/5.0\r\n"+
+			"User-Agent: %s\r\n"+
 			"\r\n",
-		auth,
+		auth, dialer.UserAgent,
 	)
 
 	if _, err = conn.Write([]byte(request)); err != nil {

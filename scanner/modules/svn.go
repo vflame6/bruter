@@ -29,7 +29,6 @@ func SVNHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout tim
 		return false, err
 	}
 	req.SetBasicAuth(credential.Username, credential.Password)
-	req.Header.Set("User-Agent", "SVN/1.14.0")
 
 	// Set Host header for domain-based targets.
 	if net.ParseIP(target.OriginalTarget) == nil {

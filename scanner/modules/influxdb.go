@@ -29,7 +29,6 @@ func InfluxDBHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeou
 		return false, err
 	}
 	req.SetBasicAuth(credential.Username, credential.Password)
-	req.Header.Set("User-Agent", "bruter")
 
 	if net.ParseIP(target.OriginalTarget) == nil {
 		host := target.OriginalTarget

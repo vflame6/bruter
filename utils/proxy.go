@@ -33,6 +33,7 @@ type ProxyAwareDialer struct {
 	dialer     proxy.Dialer
 	timeout    time.Duration
 	HTTPClient *http.Client
+	UserAgent  string
 }
 
 // NewProxyAwareDialer creates a dialer with optional SOCKS5 proxy and optional local address binding.
@@ -72,8 +73,9 @@ func NewProxyAwareDialer(proxyHost, proxyAuth string, timeout time.Duration, use
 	}
 
 	d := &ProxyAwareDialer{
-		dialer:  dialer,
-		timeout: timeout,
+		dialer:    dialer,
+		timeout:   timeout,
+		UserAgent: userAgent,
 	}
 
 	tr := &CustomTransport{

@@ -77,7 +77,6 @@ func HTTPFormHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeou
 		return false, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 
 	if net.ParseIP(target.OriginalTarget) == nil {
 		host := target.OriginalTarget
