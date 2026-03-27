@@ -15,7 +15,7 @@ require (
 	github.com/linxGnu/gosmpp v0.3.1
 	github.com/mattn/go-isatty v0.0.20
 	github.com/microsoft/go-mssqldb v1.9.8
-	github.com/nakagami/firebirdsql v0.9.16
+	github.com/nakagami/firebirdsql v0.9.17
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.18.0

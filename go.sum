@@ -143,8 +143,8 @@ github.com/microsoft/go-mssqldb v1.9.8/go.mod h1:eGSRSGAW4hKMy5YcAenhCDjIRm2rhqI
 github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe/go.mod h1:wL8QJuTMNUDYhXwkmfOly8iTdp5TEcJFWZD2D7SIkUc=
 github.com/nakagami/chacha20 v0.1.0 h1:2fbf5KeVUw7oRpAe6/A7DqvBJLYYu0ka5WstFbnkEVo=
 github.com/nakagami/chacha20 v0.1.0/go.mod h1:xpoujepNFA7MvYLvX5xKHzlOHimDrLI9Ll8zfOJ0l2E=
-github.com/nakagami/firebirdsql v0.9.16 h1:YlyWimSzT4CUYX2L0xHZeK2pdhmeaHpPxzj/4EisQcw=
-github.com/nakagami/firebirdsql v0.9.16/go.mod h1:bZKRs3rpHAjJgXAoc9YiPobTz3R22i41Zjo+llIS2B0=
+github.com/nakagami/firebirdsql v0.9.17 h1:GsQ6HTFKgzCx5n3bqQdlIorMnH/6JDI7za07iMXBVpE=
+github.com/nakagami/firebirdsql v0.9.17/go.mod h1:l3bG682R481NkM9CMlXz7zGaO2VTWnX5oTRReb3SAA0=
 github.com/neo4j/neo4j-go-driver/v5 v5.28.4 h1:7toxehVcYkZbyxV4W3Ib9VcnyRBQPucF+VwNNmtSXi4=
 github.com/neo4j/neo4j-go-driver/v5 v5.28.4/go.mod h1:Vff8OwT7QpLm7L2yYr85XNWe9Rbqlbeb9asNXJTHO4k=
 github.com/orcaman/concurrent-map/v2 v2.0.1 h1:jOJ5Pg2w1oeB6PeDurIYf6k9PQ+aTITr/6lP/L/zp6c=
