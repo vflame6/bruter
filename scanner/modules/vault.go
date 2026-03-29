@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -71,5 +70,5 @@ func VaultHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 	}
 
 	// any other response
-	return false, errors.New(fmt.Sprintf("invalid server response, maybe the target is not a vault server: %v", err))
+	return false, fmt.Errorf("invalid server response, maybe the target is not a vault server: %v", err)
 }

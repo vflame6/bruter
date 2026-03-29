@@ -31,7 +31,7 @@ func VMAuthdHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout
 	}
 
 	// Upgrade to TLS if the server requires it.
-	var activeConn net.Conn = conn
+	var activeConn = conn
 	if strings.Contains(banner, "SSL Required") {
 		tlsConn := tls.Client(conn, utils.GetTLSConfig())
 		if err := tlsConn.HandshakeContext(ctx); err != nil {

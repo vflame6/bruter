@@ -337,7 +337,14 @@ func main() {
 	}
 
 	// set up context with signal-based cancellation (Ctrl+C / SIGTERM)
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := context.WithCancel(context.Background())
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		sig := <-sigCh
+		logger.Infof("Received %s. Stopping the work...", sig)
+		cancel()
+	}()
 	defer cancel()
 
 	if stdinMode {
