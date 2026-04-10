@@ -13,7 +13,7 @@ require (
 	github.com/jlaffaye/ftp v0.2.0
 	github.com/lib/pq v1.12.0
 	github.com/linxGnu/gosmpp v0.3.1
-	github.com/mattn/go-isatty v0.0.20
+	github.com/mattn/go-isatty v0.0.21
 	github.com/microsoft/go-mssqldb v1.9.8
 	github.com/nakagami/firebirdsql v0.9.17
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
