@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"sort"
 	"syscall"
 
@@ -19,7 +20,7 @@ import (
 const AUTHOR = "Maksim Radaev (@vflame6)"
 
 // VERSION should be linked to actual tag
-const VERSION = "v1.1.1"
+var VERSION = "dev"
 
 // BANNER format string. It is used in PrintBanner function with VERSION
 const BANNER = "\n    __               __           \n   / /_  _______  __/ /____  _____\n  / __ \\/ ___/ / / / __/ _ \\/ ___/\n / /_/ / /  / /_/ / /_/  __/ /    \n/_.___/_/   \\__,_/\\__/\\___/_/      %s\n                                  \nMade by %s\n\n"
@@ -175,6 +176,14 @@ Commands: {{template "FormatCommandList" .Context.SelectedCommand.Commands}}
 Commands: {{template "FormatCommandList" .App.Commands}}
 {{end -}}
 `
+
+func init() {
+	if VERSION == "dev" {
+		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+			VERSION = info.Main.Version
+		}
+	}
+}
 
 // PrintBanner is a function to print program banner
 func PrintBanner() {
