@@ -17,7 +17,7 @@ require (
 	github.com/microsoft/go-mssqldb v1.9.8
 	github.com/nakagami/firebirdsql v0.9.18
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
-	github.com/rabbitmq/amqp091-go v1.10.0
+	github.com/rabbitmq/amqp091-go v1.11.0
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/xmppo/go-xmpp v0.3.2
