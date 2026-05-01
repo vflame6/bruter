@@ -22,7 +22,7 @@ require (
 	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/xmppo/go-xmpp v0.3.2
 	go.etcd.io/etcd/client/v3 v3.6.10
-	go.mongodb.org/mongo-driver/v2 v2.5.0
+	go.mongodb.org/mongo-driver/v2 v2.6.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.50.0
 	golang.org/x/net v0.53.0
