@@ -23,12 +23,12 @@ func Neo4jHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 
 	driver, err := neo4j.NewDriverWithContext(uri,
 		neo4j.BasicAuth(credential.Username, credential.Password, ""),
-		func(config *neo4jconfig.Config) {
-			config.SocketConnectTimeout = timeout
-			config.ConnectionAcquisitionTimeout = timeout
-			config.MaxConnectionPoolSize = 1
+		func(cfg *neo4jconfig.Config) {
+			cfg.SocketConnectTimeout = timeout
+			cfg.ConnectionAcquisitionTimeout = timeout
+			cfg.MaxConnectionPoolSize = 1
 			if target.Encryption {
-				config.TlsConfig = utils.GetTLSConfig()
+				cfg.TlsConfig = utils.GetTLSConfig()
 			}
 		},
 	)

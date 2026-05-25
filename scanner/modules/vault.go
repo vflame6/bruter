@@ -56,6 +56,9 @@ func VaultHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
 	bodyString := string(body)
 
 	// successful authentication

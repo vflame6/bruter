@@ -403,6 +403,7 @@ func TestParallelHandler_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
+		defer close(s.Targets)
 		for i := 0; i < 20; i++ {
 			select {
 			case s.Targets <- newTestTarget("127.0.0.1", 22):
@@ -410,7 +411,6 @@ func TestParallelHandler_ContextCancellation(t *testing.T) {
 				return
 			}
 		}
-		close(s.Targets)
 	}()
 
 	go func() {
