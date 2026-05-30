@@ -112,11 +112,11 @@ func (l *Logger) Fatal(v ...interface{}) {
 	msg := fmt.Sprint(v...)
 
 	if l.quiet {
-		fmt.Fprintln(l.output, msg)
+		_, _ = fmt.Fprintln(l.output, msg)
 	} else if l.debug {
-		fmt.Fprintf(l.output, "%s [FATAL] %s\n", timestamp(), msg)
+		_, _ = fmt.Fprintf(l.output, "%s [FATAL] %s\n", timestamp(), msg)
 	} else {
-		fmt.Fprintf(l.output, "[FATAL] %s\n", msg)
+		_, _ = fmt.Fprintf(l.output, "[FATAL] %s\n", msg)
 	}
 
 	l.mu.Unlock()
@@ -131,11 +131,11 @@ func (l *Logger) Fatalf(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
 
 	if l.quiet {
-		fmt.Fprintln(l.output, msg)
+		_, _ = fmt.Fprintln(l.output, msg)
 	} else if l.debug {
-		fmt.Fprintf(l.output, "%s [FATAL] %s\n", timestamp(), msg)
+		_, _ = fmt.Fprintf(l.output, "%s [FATAL] %s\n", timestamp(), msg)
 	} else {
-		fmt.Fprintf(l.output, "[FATAL] %s\n", msg)
+		_, _ = fmt.Fprintf(l.output, "[FATAL] %s\n", msg)
 	}
 
 	l.mu.Unlock()
@@ -168,9 +168,9 @@ func (l *Logger) Info(v ...interface{}) {
 	msg := fmt.Sprint(v...)
 
 	if l.debug {
-		fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
+		_, _ = fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
 	} else {
-		fmt.Fprintf(l.output, "[*] %s\n", msg)
+		_, _ = fmt.Fprintf(l.output, "[*] %s\n", msg)
 	}
 }
 
@@ -187,9 +187,9 @@ func (l *Logger) Infof(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
 
 	if l.debug {
-		fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
+		_, _ = fmt.Fprintf(l.output, "%s [*] %s\n", timestamp(), msg)
 	} else {
-		fmt.Fprintf(l.output, "[*] %s\n", msg)
+		_, _ = fmt.Fprintf(l.output, "[*] %s\n", msg)
 	}
 }
 
@@ -216,7 +216,7 @@ func (l *Logger) Debug(v ...interface{}) {
 
 	l.clearLine()
 	msg := fmt.Sprint(v...)
-	fmt.Fprintf(l.output, "%s [DEBUG] %s\n", timestamp(), msg)
+	_, _ = fmt.Fprintf(l.output, "%s [DEBUG] %s\n", timestamp(), msg)
 }
 
 // Debugf logs a formatted debug message.
@@ -230,7 +230,7 @@ func (l *Logger) Debugf(format string, v ...interface{}) {
 
 	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
-	fmt.Fprintf(l.output, "%s [DEBUG] %s\n", timestamp(), msg)
+	_, _ = fmt.Fprintf(l.output, "%s [DEBUG] %s\n", timestamp(), msg)
 }
 
 // Debug logs a debug message using the default logger.
@@ -255,11 +255,11 @@ func (l *Logger) Success(v ...interface{}) {
 	msg := fmt.Sprint(v...)
 
 	if l.quiet {
-		fmt.Fprintln(l.output, msg)
+		_, _ = fmt.Fprintln(l.output, msg)
 	} else if l.debug {
-		fmt.Fprintf(l.output, "%s [+] %s\n", timestamp(), msg)
+		_, _ = fmt.Fprintf(l.output, "%s [+] %s\n", timestamp(), msg)
 	} else {
-		fmt.Fprintf(l.output, "[+] %s\n", msg)
+		_, _ = fmt.Fprintf(l.output, "[+] %s\n", msg)
 	}
 }
 
@@ -272,11 +272,11 @@ func (l *Logger) Successf(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
 
 	if l.quiet {
-		fmt.Fprintln(l.output, msg)
+		_, _ = fmt.Fprintln(l.output, msg)
 	} else if l.debug {
-		fmt.Fprintf(l.output, "%s [+] %s\n", timestamp(), msg)
+		_, _ = fmt.Fprintf(l.output, "%s [+] %s\n", timestamp(), msg)
 	} else {
-		fmt.Fprintf(l.output, "[+] %s\n", msg)
+		_, _ = fmt.Fprintf(l.output, "[+] %s\n", msg)
 	}
 }
 
@@ -302,11 +302,11 @@ func (l *Logger) Fail(v ...interface{}) {
 	msg := fmt.Sprint(v...)
 
 	if l.quiet {
-		fmt.Fprintln(l.output, msg)
+		_, _ = fmt.Fprintln(l.output, msg)
 	} else if l.debug {
-		fmt.Fprintf(l.output, "%s [-] %s\n", timestamp(), msg)
+		_, _ = fmt.Fprintf(l.output, "%s [-] %s\n", timestamp(), msg)
 	} else {
-		fmt.Fprintf(l.output, "[-] %s\n", msg)
+		_, _ = fmt.Fprintf(l.output, "[-] %s\n", msg)
 	}
 }
 
@@ -319,11 +319,11 @@ func (l *Logger) Failf(format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
 
 	if l.quiet {
-		fmt.Fprintln(l.output, msg)
+		_, _ = fmt.Fprintln(l.output, msg)
 	} else if l.debug {
-		fmt.Fprintf(l.output, "%s [-] %s\n", timestamp(), msg)
+		_, _ = fmt.Fprintf(l.output, "%s [-] %s\n", timestamp(), msg)
 	} else {
-		fmt.Fprintf(l.output, "[-] %s\n", msg)
+		_, _ = fmt.Fprintf(l.output, "[-] %s\n", msg)
 	}
 }
 
@@ -372,9 +372,9 @@ func (l *Logger) Verbosef(format string, v ...interface{}) {
 	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
 	if l.debug {
-		fmt.Fprintf(l.output, "%s [VERBOSE] %s\n", timestamp(), msg)
+		_, _ = fmt.Fprintf(l.output, "%s [VERBOSE] %s\n", timestamp(), msg)
 	} else {
-		fmt.Fprintf(l.output, "[VERBOSE] %s\n", msg)
+		_, _ = fmt.Fprintf(l.output, "[VERBOSE] %s\n", msg)
 	}
 }
 

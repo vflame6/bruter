@@ -10,7 +10,7 @@ import (
 	"github.com/vflame6/bruter/utils"
 )
 
-var ClickHouseErrAuth = errors.New("authentication error")
+var ErrClickHouseAuth = errors.New("authentication error")
 
 // ClickHouseHandler is an implementation of ModuleHandler for ClickHouse service
 func ClickHouseHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
@@ -39,13 +39,13 @@ func ClickHouseHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, time
 		// something wrong with library I guess, we do not perform connection here
 		return false, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// test connection and authentication
 	err = conn.Ping(ctx)
 	if err != nil {
 		errType := classifyClickHouseError(err)
-		if errors.Is(errType, ClickHouseErrAuth) {
+		if errors.Is(errType, ErrClickHouseAuth) {
 			// if errType is auth_error, then the authentication is failed
 			return false, nil
 		}
@@ -64,13 +64,13 @@ func classifyClickHouseError(err error) error {
 		// Error codes: https://github.com/ClickHouse/ClickHouse/blob/master/src/Common/ErrorCodes.cpp
 		switch chErr.Code {
 		case 516: // AUTHENTICATION_FAILED
-			return ClickHouseErrAuth
+			return ErrClickHouseAuth
 		case 192: // UNKNOWN_USER
-			return ClickHouseErrAuth
+			return ErrClickHouseAuth
 		case 193: // WRONG_PASSWORD
-			return ClickHouseErrAuth
+			return ErrClickHouseAuth
 		case 194: // REQUIRED_PASSWORD
-			return ClickHouseErrAuth
+			return ErrClickHouseAuth
 		default:
 			return err
 		}

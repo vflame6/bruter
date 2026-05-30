@@ -31,7 +31,7 @@ func FirebirdHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeou
 	if err != nil {
 		return false, err
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	db.SetMaxOpenConns(1)
 	db.SetConnMaxLifetime(timeout)

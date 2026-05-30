@@ -127,7 +127,6 @@ func RTSPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout ti
 			"DESCRIBE %s RTSP/1.0\r\nCSeq: %d\r\nAuthorization: %s\r\nAccept: application/sdp\r\n\r\n",
 			rtspURL, cseq, authHeader,
 		)
-		cseq++
 		if _, err = fmt.Fprint(conn, digestReq); err != nil {
 			return false, err
 		}
@@ -235,5 +234,3 @@ func parseDigestChallenge(header string) map[string]string {
 	}
 	return result
 }
-
-

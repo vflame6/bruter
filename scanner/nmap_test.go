@@ -27,13 +27,15 @@ func writeTempFile(t *testing.T, content string) string {
 		t.Fatalf("create temp: %v", err)
 	}
 	_, _ = f.WriteString(content)
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatalf("close temp file: %v", err)
+	}
 	return f.Name()
 }
 
 func TestNmapSummary_Valid(t *testing.T) {
 	path := writeTempFile(t, sampleGNMAP)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	summary, err := NmapSummary(path)
 	if err != nil {
@@ -50,7 +52,7 @@ func TestNmapSummary_Valid(t *testing.T) {
 
 func TestNmapSummary_Empty(t *testing.T) {
 	path := writeTempFile(t, "# Nmap scan\n")
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	summary, err := NmapSummary(path)
 	if err != nil {
@@ -70,7 +72,7 @@ func TestNmapSummary_InvalidFile(t *testing.T) {
 
 func TestRunNmap_ContextCancelled(t *testing.T) {
 	path := writeTempFile(t, sampleGNMAP)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	s := &Scanner{
 		Opts:       &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},
@@ -114,7 +116,7 @@ func TestRunNmap_InvalidFile(t *testing.T) {
 
 func TestRunNmapWithResults_ContextCancelled(t *testing.T) {
 	path := writeTempFile(t, sampleGNMAP)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	s := &Scanner{
 		Opts:       &Options{ConcurrentServices: 5, Parallel: 1, Threads: 1, Timeout: time.Second},

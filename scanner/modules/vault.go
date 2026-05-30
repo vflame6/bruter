@@ -53,7 +53,7 @@ func VaultHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 		// connection error
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	bodyString := string(body)

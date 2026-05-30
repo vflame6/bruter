@@ -143,14 +143,14 @@ func (s *Scanner) runHostGroups(ctx context.Context, hostGroups [][]hostService,
 
 	hostCh := make(chan []hostService, parallel*BufferMultiplier)
 	go func() {
+		defer close(hostCh)
 		for _, services := range hostGroups {
 			select {
 			case hostCh <- services:
 			case <-ctx.Done():
-				break
+				return
 			}
 		}
-		close(hostCh)
 	}()
 
 	var hostWg sync.WaitGroup

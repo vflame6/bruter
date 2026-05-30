@@ -3,7 +3,6 @@ package modules
 import (
 	"bytes"
 	"context"
-	"crypto/des"
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/rand"
@@ -24,8 +23,8 @@ const (
 	tpktVersion = 3
 
 	// RDP Negotiation Request types
-	typeRDPNegReq  byte = 0x01
-	protoNLA       uint32 = 0x03 // TLS + CredSSP
+	typeRDPNegReq byte   = 0x01
+	protoNLA      uint32 = 0x03 // TLS + CredSSP
 
 	// RDP Negotiation Response types
 	typeRDPNegRsp  byte = 0x02
@@ -37,17 +36,17 @@ const (
 	ntlmAuthenticate uint32 = 3
 
 	// NTLM negotiate flags
-	ntlmNegUnicode       uint32 = 0x00000001
-	ntlmNegNTLM          uint32 = 0x00000200
-	ntlmNegSeal          uint32 = 0x00000020
-	ntlmNegSign          uint32 = 0x00000010
-	ntlmReqTarget        uint32 = 0x00000004
-	ntlmNegAlwaysSign    uint32 = 0x00008000
-	ntlmNegExtendedSess  uint32 = 0x00080000
-	ntlmNegTargetInfo    uint32 = 0x00800000
-	ntlmNeg56            uint32 = 0x80000000
-	ntlmNeg128           uint32 = 0x20000000
-	ntlmNegKeyExchange   uint32 = 0x40000000
+	ntlmNegUnicode      uint32 = 0x00000001
+	ntlmNegNTLM         uint32 = 0x00000200
+	ntlmNegSeal         uint32 = 0x00000020
+	ntlmNegSign         uint32 = 0x00000010
+	ntlmReqTarget       uint32 = 0x00000004
+	ntlmNegAlwaysSign   uint32 = 0x00008000
+	ntlmNegExtendedSess uint32 = 0x00080000
+	ntlmNegTargetInfo   uint32 = 0x00800000
+	ntlmNeg56           uint32 = 0x80000000
+	ntlmNeg128          uint32 = 0x20000000
+	ntlmNegKeyExchange  uint32 = 0x40000000
 )
 
 var ntlmSignature = []byte("NTLMSSP\x00")
@@ -70,7 +69,7 @@ func RDPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout tim
 	if err != nil {
 		return false, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(deadline)
@@ -100,7 +99,7 @@ func RDPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout tim
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
 		return false, fmt.Errorf("tls handshake: %w", err)
 	}
-	defer tlsConn.Close()
+	defer func() { _ = tlsConn.Close() }()
 
 	// Step 5: CredSSP/NTLM authentication
 	return credSSPAuth(tlsConn, domain, username, credential.Password, timeout)
@@ -275,8 +274,8 @@ func buildNTLMAuthenticate(challenge []byte, domain, username, password string) 
 
 	// Build NTLMv2 client blob
 	blob := new(bytes.Buffer)
-	blob.WriteByte(0x01) // RespType
-	blob.WriteByte(0x01) // HiRespType
+	blob.WriteByte(0x01)                 // RespType
+	blob.WriteByte(0x01)                 // HiRespType
 	blob.Write([]byte{0, 0, 0, 0, 0, 0}) // Reserved
 	// Timestamp (current time as Windows FILETIME)
 	now := time.Now().UnixNano()/100 + 116444736000000000
@@ -475,33 +474,6 @@ func toUTF16LE(s string) []byte {
 	return b
 }
 
-// desEncrypt encrypts 8 bytes with a 7-byte DES key (used in LM/NTLM)
-func desEncrypt(key7 []byte, data []byte) []byte {
-	key8 := des7to8(key7)
-	c, _ := des.NewCipher(key8)
-	out := make([]byte, 8)
-	c.Encrypt(out, data)
-	return out
-}
-
-func des7to8(key7 []byte) []byte {
-	if len(key7) < 7 {
-		padded := make([]byte, 7)
-		copy(padded, key7)
-		key7 = padded
-	}
-	return []byte{
-		key7[0],
-		(key7[0] << 7) | (key7[1] >> 1),
-		(key7[1] << 6) | (key7[2] >> 2),
-		(key7[2] << 5) | (key7[3] >> 3),
-		(key7[3] << 4) | (key7[4] >> 4),
-		(key7[4] << 3) | (key7[5] >> 5),
-		(key7[5] << 2) | (key7[6] >> 6),
-		key7[6] << 1,
-	}
-}
-
 // CredSSP/TSRequest helpers using minimal ASN.1 DER encoding
 
 // buildTSRequest builds a CredSSP TSRequest message
@@ -642,4 +614,3 @@ func hasCredSSPError(data []byte) bool {
 	// errorCode is [3] in TSRequest — look for context tag 0xa3
 	return bytes.Contains(data, []byte{0xa3})
 }
-

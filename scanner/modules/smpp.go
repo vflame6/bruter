@@ -15,8 +15,8 @@ import (
 	"github.com/vflame6/bruter/utils"
 )
 
-// SMPPErrAuth represents an authentication error (invalid credentials).
-var SMPPErrAuth = errors.New("authentication error")
+// ErrSMPPAuth represents an authentication error (invalid credentials).
+var ErrSMPPAuth = errors.New("authentication error")
 
 // SMPPHandler is an implementation of ModuleHandler for SMPP service
 func SMPPHandler(ctx context.Context, d *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
@@ -63,7 +63,7 @@ func SMPPHandler(ctx context.Context, d *utils.ProxyAwareDialer, timeout time.Du
 	if err != nil {
 		errType := classifySMPPError(err)
 		// check for authentication error
-		if errors.Is(errType, SMPPErrAuth) {
+		if errors.Is(errType, ErrSMPPAuth) {
 			return false, nil
 		}
 		// connection error
@@ -121,7 +121,7 @@ func classifySMPPError(err error) error {
 
 	// Check for authentication errors (SMPP bind errors)
 	if isSMPPAuthError(err) {
-		return fmt.Errorf("%w: %v", SMPPErrAuth, err)
+		return fmt.Errorf("%w: %v", ErrSMPPAuth, err)
 	}
 
 	// Default to connection error

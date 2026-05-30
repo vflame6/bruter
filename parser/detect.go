@@ -25,7 +25,7 @@ func DetectFormat(path string) (Format, error) {
 	if err != nil {
 		return FormatUnknown, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	var xmlDetected bool

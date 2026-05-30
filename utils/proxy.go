@@ -134,17 +134,17 @@ func (p *ProxyAwareDialer) DialTLS(network, addr string, config *tls.Config) (ne
 	tlsConn := tls.Client(conn, config)
 
 	if err := tlsConn.SetDeadline(time.Now().Add(p.timeout)); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
 	if err := tlsConn.Handshake(); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
 	if err := tlsConn.SetDeadline(time.Time{}); err != nil {
-		tlsConn.Close()
+		_ = tlsConn.Close()
 		return nil, err
 	}
 
@@ -180,17 +180,17 @@ func (p *ProxyAwareDialer) DialTLSContext(ctx context.Context, network, addr str
 	}
 
 	if err := tlsConn.SetDeadline(deadline); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
 	if err := tlsConn.Handshake(); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 
 	if err := tlsConn.SetDeadline(time.Time{}); err != nil {
-		tlsConn.Close()
+		_ = tlsConn.Close()
 		return nil, err
 	}
 

@@ -23,25 +23,10 @@ func mockHandler(successUser, successPass string) modules.ModuleHandler {
 	}
 }
 
-// alwaysFailHandler returns false with no error (reachable but no match).
-func alwaysFailHandler() modules.ModuleHandler {
-	return func(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *modules.Target, cred *modules.Credential) (bool, error) {
-		return false, nil
-	}
-}
-
 // errorHandler returns an error on every attempt.
 func errorHandler() modules.ModuleHandler {
 	return func(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *modules.Target, cred *modules.Credential) (bool, error) {
 		return false, net.UnknownNetworkError("mock error")
-	}
-}
-
-// countingHandler counts how many times it's called.
-func countingHandler(counter *atomic.Int64) modules.ModuleHandler {
-	return func(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *modules.Target, cred *modules.Credential) (bool, error) {
-		counter.Add(1)
-		return false, nil
 	}
 }
 
@@ -422,7 +407,7 @@ func TestParallelHandler_ContextCancellation(t *testing.T) {
 			select {
 			case s.Targets <- newTestTarget("127.0.0.1", 22):
 			case <-ctx.Done():
-				break
+				return
 			}
 		}
 		close(s.Targets)
@@ -637,7 +622,7 @@ func TestStop_ClosesOutputFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("temp file: %v", err)
 	}
-	defer os.Remove(f.Name())
+	defer func() { _ = os.Remove(f.Name()) }()
 
 	s := newTestScanner(&Options{Threads: 1, OutputFile: f})
 	s.Stop()

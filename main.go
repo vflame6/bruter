@@ -130,6 +130,20 @@ var (
 	vncCommand           = app.Command("vnc", "VNC module (port 5900)")
 	winrmCommand         = app.Command("winrm", "WinRM Basic Auth module (port 5985 / 5986 TLS)")
 	xmppCommand          = app.Command("xmpp", "XMPP SASL authentication module (port 5222)")
+
+	_ = []any{
+		listServicesFlag,
+		allCommand, amqpCommand, asteriskCommand, cassandraCommand, ciscoCommand, ciscoEnableCommand,
+		clickhouseCommand, cobaltStrikeCommand, couchdbCommand, elasticsearchCommand, etcdCommand,
+		firebirdCommand, ftpCommand, httpBasicCommand, httpFormCommand, httpProxyCommand, imapCommand,
+		influxdbCommand, ircCommand, ldapCommand, memcachedCommand, mongoCommand, mssqlCommand,
+		mysqlCommand, neo4jCommand, nntpCommand, oracleCommand, pop3Command, postgresCommand,
+		radminCommand, rdpCommand, redisCommand, rexecCommand, rloginCommand, rpcapCommand,
+		rshCommand, rtspCommand, s7Command, sipCommand, smbCommand, smppCommand, smtpCommand,
+		smtpEnumCommand, snmpCommand, socks5Command, sshCommand, sshkeyCommand, svnCommand,
+		teamSpeakCommand, telnetCommand, vaultCommand, vmauthdCommand, vncCommand, winrmCommand,
+		xmppCommand,
+	}
 )
 
 // CustomUsageTemplate is a template for kingpin's help menu
@@ -206,7 +220,9 @@ func ParseArgs() string {
 				switch flag.Model().Name {
 				case "version", "help", "completion-script-zsh", "completion-script-bash":
 					// Let kingpin handle --version, --help and --completion-script-*
-					app.Parse(os.Args[1:])
+					if _, err := app.Parse(os.Args[1:]); err != nil {
+						app.FatalUsage(err.Error())
+					}
 					os.Exit(0)
 				case "list-services":
 					printServices()

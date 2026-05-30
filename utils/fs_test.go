@@ -13,8 +13,10 @@ func TestIsFileExists_ExistingFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	defer os.Remove(f.Name())
-	f.Close()
+	defer func() { _ = os.Remove(f.Name()) }()
+	if err := f.Close(); err != nil {
+		t.Fatalf("failed to close temp file: %v", err)
+	}
 
 	if !IsFileExists(f.Name()) {
 		t.Errorf("IsFileExists(%q) = false, want true", f.Name())
@@ -33,7 +35,7 @@ func TestIsFileExists_Directory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	// Directories exist but are not files — IsFileExists uses os.Stat which
 	// returns true for directories too. Verify the actual behaviour.
@@ -53,8 +55,10 @@ func writeTempFile(t *testing.T, content string) string {
 	if _, err := f.WriteString(content); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
-	f.Close()
-	t.Cleanup(func() { os.Remove(f.Name()) })
+	if err := f.Close(); err != nil {
+		t.Fatalf("failed to close temp file: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Remove(f.Name()) })
 	return f.Name()
 }
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	neo4jconfig "github.com/neo4j/neo4j-go-driver/v5/neo4j/config"
 	"github.com/vflame6/bruter/utils"
 )
 
@@ -22,7 +23,7 @@ func Neo4jHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 
 	driver, err := neo4j.NewDriverWithContext(uri,
 		neo4j.BasicAuth(credential.Username, credential.Password, ""),
-		func(config *neo4j.Config) {
+		func(config *neo4jconfig.Config) {
 			config.SocketConnectTimeout = timeout
 			config.ConnectionAcquisitionTimeout = timeout
 			config.MaxConnectionPoolSize = 1

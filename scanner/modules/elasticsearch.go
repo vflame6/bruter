@@ -44,7 +44,7 @@ func ElasticsearchHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, t
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	switch resp.StatusCode {

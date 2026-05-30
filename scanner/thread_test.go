@@ -31,14 +31,16 @@ func TestGetResults_JSONMode_FieldNamesAndTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("temp file: %v", err)
 	}
-	defer os.Remove(f.Name())
+	defer func() { _ = os.Remove(f.Name()) }()
 
 	var wg sync.WaitGroup
 	var successes atomic.Int64
 	wg.Add(1)
 	GetResults(results, f, &wg, &successes, true /* jsonMode */)
 	wg.Wait()
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatalf("close output file: %v", err)
+	}
 
 	// Read and parse
 	raw, err := os.ReadFile(f.Name())
@@ -129,14 +131,16 @@ func TestGetResults_PlainTextMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("temp file: %v", err)
 	}
-	defer os.Remove(f.Name())
+	defer func() { _ = os.Remove(f.Name()) }()
 
 	var wg sync.WaitGroup
 	var successes atomic.Int64
 	wg.Add(1)
 	GetResults(results, f, &wg, &successes, false /* plainText */)
 	wg.Wait()
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatalf("close output file: %v", err)
+	}
 
 	raw, err := os.ReadFile(f.Name())
 	if err != nil {

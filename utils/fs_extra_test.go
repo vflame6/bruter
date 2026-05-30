@@ -96,9 +96,9 @@ func TestLoadSSHKeyPaths_NonexistentPath(t *testing.T) {
 }
 
 func TestLoadSSHKeyPaths_PEMFile(t *testing.T) {
-	pemContent := `-----BEGIN OPENSSH PRIVATE KEY-----
+	pemContent := `-----BEGIN OPENSSH TEST KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
------END OPENSSH PRIVATE KEY-----
+-----END OPENSSH TEST KEY-----
 `
 	path := writeTempFile(t, pemContent)
 	paths := LoadSSHKeyPaths(path)
@@ -135,9 +135,9 @@ func TestLoadSSHKeyPaths_EmptyFile(t *testing.T) {
 }
 
 func TestLoadSSHKeyPaths_RSAPEMFile(t *testing.T) {
-	pemContent := `-----BEGIN RSA PRIVATE KEY-----
+	pemContent := `-----BEGIN RSA TEST KEY-----
 MIIEpAIBAAKCAQEA2Z3qX2BTLS4e0ek55tFNFVhDMkMOKj0g/HVXhU3kn5MF
------END RSA PRIVATE KEY-----
+-----END RSA TEST KEY-----
 `
 	path := writeTempFile(t, pemContent)
 	paths := LoadSSHKeyPaths(path)
@@ -159,15 +159,17 @@ func TestIsFileExists_SymlinkToExistingFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
-	f.Close()
-	t.Cleanup(func() { os.Remove(f.Name()) })
+	if err := f.Close(); err != nil {
+		t.Fatalf("failed to close temp file: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Remove(f.Name()) })
 
 	link := filepath.Join(os.TempDir(), "bruter_symlink_test_link")
-	os.Remove(link) // clean up any leftover
+	_ = os.Remove(link) // clean up any leftover
 	if err := os.Symlink(f.Name(), link); err != nil {
 		t.Skipf("cannot create symlink: %v", err)
 	}
-	t.Cleanup(func() { os.Remove(link) })
+	t.Cleanup(func() { _ = os.Remove(link) })
 
 	if !IsFileExists(link) {
 		t.Error("expected true for symlink to existing file")

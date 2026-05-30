@@ -43,7 +43,7 @@ func CouchDBHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	switch resp.StatusCode {

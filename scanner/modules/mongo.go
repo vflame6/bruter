@@ -43,7 +43,7 @@ func MongoHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 	// Verify connection
 	opCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	defer client.Disconnect(opCtx)
+	defer func() { _ = client.Disconnect(opCtx) }()
 
 	// ListDatabaseNames requires authentication
 	_, err = client.ListDatabaseNames(opCtx, bson.D{})

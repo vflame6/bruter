@@ -28,6 +28,6 @@ func FuzzParseTarget(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, target string, defaultPort int) {
 		// Must not panic — errors are fine
-		ParseTarget(target, defaultPort)
+		_, _ = ParseTarget(target, defaultPort)
 	})
 }

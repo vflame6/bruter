@@ -39,7 +39,7 @@ func FTPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout tim
 		// not connected
 		return false, err
 	}
-	defer conn.Quit()
+	defer func() { _ = conn.Quit() }()
 
 	// test authentication
 	err = conn.Login(credential.Username, credential.Password)

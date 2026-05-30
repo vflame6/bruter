@@ -1,0 +1,8 @@
+title = "bruter gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Intentional embedded known-bad SSH key corpus used by the sshkey module"
+paths = ['''^wordlists/ssh_badkeys\.txt$''']

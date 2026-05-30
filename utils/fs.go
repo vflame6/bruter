@@ -28,7 +28,7 @@ func CountLinesInFile(filename string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	buf := make([]byte, 32*1024)
 	count := 0
@@ -71,7 +71,7 @@ func ParseFileByLine(filename string) <-chan string {
 			if err != nil {
 				return
 			}
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 
 			scanner := bufio.NewScanner(f)
 			for scanner.Scan() {
@@ -136,7 +136,7 @@ func LoadLines(filename string) []string {
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var lines []string
 	scanner := bufio.NewScanner(f)

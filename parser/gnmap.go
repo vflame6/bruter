@@ -10,7 +10,9 @@ import (
 )
 
 // portEntry matches individual port entries in GNMAP Host lines:
-//   22/open/tcp//ssh///
+//
+//	22/open/tcp//ssh///
+//
 // Groups: 1=port, 2=state, 3=proto, 4=service
 var portEntry = regexp.MustCompile(`(\d+)/([^/]*)/([^/]*)//?([^/]*)`)
 
@@ -21,7 +23,7 @@ func ParseGNMAP(path string) ([]Target, error) {
 	if err != nil {
 		return nil, fmt.Errorf("gnmap: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var targets []Target
 

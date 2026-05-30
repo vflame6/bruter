@@ -92,7 +92,7 @@ func HTTPFormHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeou
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	// Read response body.

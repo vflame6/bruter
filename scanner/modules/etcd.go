@@ -27,7 +27,6 @@ func EtcdHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout ti
 	var err error
 
 	dialOptions := []grpc.DialOption{
-		grpc.WithBlock(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 			return dialer.DialContext(ctx, "tcp", addr)
@@ -54,7 +53,7 @@ func EtcdHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout ti
 		// connection error
 		return false, err
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	authCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

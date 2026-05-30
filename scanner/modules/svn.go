@@ -45,7 +45,7 @@ func SVNHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout tim
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	// 200, 204, 207 (Multi-Status) = authenticated.

@@ -29,7 +29,7 @@ func OracleHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout 
 	}
 
 	db := sql.OpenDB(connector)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	db.SetMaxOpenConns(1)
 	db.SetConnMaxLifetime(timeout)
