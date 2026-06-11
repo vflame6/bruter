@@ -92,7 +92,7 @@ Flags:
   -o, --output=""              Filename to write output in raw format
       --[no-]version           Show application version.
 
-Commands: all amqp asterisk cassandra cisco cisco-enable clickhouse cobaltstrike couchdb elasticsearch etcd firebird ftp http-basic http-form http-proxy imap influxdb irc ldap ldaps memcached mongo mssql mysql neo4j nntp oracle pop3 postgres radmin rdp redis rexec rlogin rpcap rsh rtsp s7 sip smb smpp smtp smtp-enum snmp socks5 ssh sshkey svn teamspeak telnet vault vmauthd vnc winrm xmpp 
+Commands: all amqp asterisk cassandra cisco cisco-enable clickhouse cobaltstrike couchdb elasticsearch etcd firebird ftp http-basic http-form http-proxy imap influxdb irc ldap memcached mongo mssql mysql neo4j nntp oracle pop3 postgres radmin rdp redis rexec rlogin rpcap rsh rtsp s7 sip smb smpp smtp smtp-enum snmp socks5 ssh sshkey svn teamspeak telnet vault vmauthd vnc winrm xmpp 
 ```
 
 ### Quick Examples
