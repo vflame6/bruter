@@ -184,3 +184,11 @@ docker run --rm bruter ssh -t 10.0.0.1 -u admin -p passwords.txt
 ## Contributing
 
 Contributions are welcome! Feel free to open an issue or submit a pull request. New module ideas, bug reports, and feature requests are all appreciated.
+
+Pull requests and pushes to `main` run the Go CI workflow. Keep these checks green before requesting review:
+
+```shell
+go test ./...
+go vet ./...
+golangci-lint run ./...
+```
