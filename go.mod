@@ -18,7 +18,7 @@ require (
 	github.com/nakagami/firebirdsql v0.9.19
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/rabbitmq/amqp091-go v1.11.0
-	github.com/redis/go-redis/v9 v9.20.0
+	github.com/redis/go-redis/v9 v9.20.1
 	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/xmppo/go-xmpp v0.3.4
 	go.etcd.io/etcd/client/v3 v3.6.11
