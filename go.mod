@@ -1,6 +1,6 @@
 module github.com/vflame6/bruter
 
-go 1.25.7
+go 1.26
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
@@ -10,7 +10,7 @@ require (
 	github.com/gocql/gocql v1.7.0
 	github.com/gosnmp/gosnmp v1.43.2
 	github.com/hirochachacha/go-smb2 v1.1.0
-	github.com/jlaffaye/ftp v0.2.0
+	github.com/jlaffaye/ftp v0.2.1
 	github.com/lib/pq v1.12.3
 	github.com/linxGnu/gosmpp v0.3.1
 	github.com/mattn/go-isatty v0.0.22
@@ -50,8 +50,6 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/nakagami/chacha20 v0.1.0 // indirect
