@@ -17,6 +17,10 @@ var (
 
 // SSHHandler is an implementation of ModuleHandler for SSH service
 func SSHHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	return sshAuthHandler(ctx, dialer, timeout, target, credential, ssh.Password(credential.Password))
+}
+
+func sshAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential, auth ssh.AuthMethod) (bool, error) {
 	addr := target.Addr()
 
 	supported := ssh.SupportedAlgorithms()
@@ -24,9 +28,7 @@ func SSHHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout tim
 
 	config := &ssh.ClientConfig{
 		User: credential.Username,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(credential.Password),
-		},
+		Auth: []ssh.AuthMethod{auth},
 		Timeout:         timeout,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Config: ssh.Config{

@@ -15,7 +15,7 @@ func TestModuleRegistryContainsExpectedServices(t *testing.T) {
 		"ldap", "memcached", "mongo", "mssql", "mysql", "neo4j", "nntp",
 		"oracle", "pop3", "postgres", "radmin", "rdp", "redis", "rexec",
 		"rlogin", "rpcap", "rsh", "rtsp", "s7", "sip", "smb", "smpp",
-		"smtp", "smtp-enum", "snmp", "socks5", "ssh", "sshkey", "svn",
+		"smtp", "smtp-enum", "snmp", "socks5", "ssh", "ssh-hole", "sshkey", "svn",
 		"teamspeak", "telnet", "vault", "vmauthd", "vnc", "winrm", "xmpp",
 	}
 

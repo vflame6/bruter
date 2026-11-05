@@ -196,6 +196,8 @@ func (s *Scanner) processHost(ctx context.Context, services []hostService, defau
 		var passwords []string
 		if svc.command == "sshkey" {
 			passwords = sshkeyPasswords
+		} else if svc.command == "ssh-hole" {
+			passwords = []string{modules.SSHHoleProbePassword()}
 		} else {
 			passwords = defaultPasswords
 		}
@@ -214,6 +216,14 @@ func (s *Scanner) processHost(ctx context.Context, services []hostService, defau
 			svcOpts := *s.Opts
 			svcOpts.Command = command
 			svcOpts.PasswordList = passwords
+			if command == "ssh-hole" && svcOpts.Defaults {
+				svcOpts.UsernameList = appendSSHHoleDefaultUsername(append([]string(nil), svcOpts.UsernameList...))
+			}
+			if command == "ssh-hole" {
+				// Keep user-supplied combos from turning this vulnerability check
+				// into an ordinary credential scan with misleading result labels.
+				svcOpts.ComboList = nil
+			}
 			svcScanner.Opts = &svcOpts
 
 			// Feed single target
@@ -235,7 +245,8 @@ func (s *Scanner) processHost(ctx context.Context, services []hostService, defau
 // groupByHost groups parsed targets by host IP/hostname, resolving DNS,
 // and returns a slice of host groups (each group = all services on that host).
 // It deduplicates same-module targets per host (keeps higher port) and
-// expands SSH to include sshkey when --defaults is set.
+// expands SSH to include its embedded-key and sshhole checks when --defaults
+// is set.
 func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
 	type hostKey string
 	hostMap := make(map[hostKey][]hostService)
@@ -284,28 +295,30 @@ func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
 		}
 	}
 
-	// When --defaults is set, expand SSH targets to also run sshkey module.
+	// When --defaults is set, also run the embedded-key and sshhole checks.
 	if s.Opts.Defaults {
 		for key, services := range hostMap {
 			for _, svc := range services {
 				if svc.command == "ssh" {
-					hasSshkey := false
-					for _, existing := range services {
-						if existing.command == "sshkey" {
-							hasSshkey = true
-							break
+					for _, check := range []string{"sshkey", "ssh-hole"} {
+						hasCheck := false
+						for _, existing := range hostMap[key] {
+							if existing.command == check {
+								hasCheck = true
+								break
+							}
 						}
-					}
-					if !hasSshkey {
-						hostMap[key] = append(hostMap[key], hostService{
-							command: "sshkey",
-							target: &modules.Target{
-								IP:             svc.target.IP,
-								Port:           svc.target.Port,
-								OriginalTarget: svc.target.OriginalTarget,
-								Encryption:     true,
-							},
-						})
+						if !hasCheck {
+							hostMap[key] = append(hostMap[key], hostService{
+								command: check,
+								target: &modules.Target{
+									IP:             svc.target.IP,
+									Port:           svc.target.Port,
+									OriginalTarget: svc.target.OriginalTarget,
+									Encryption:     true,
+								},
+							})
+						}
 					}
 					break
 				}

@@ -186,13 +186,17 @@ func reverseString(s string) string {
 }
 
 // loadCredentials pre-loads usernames, passwords, and combo lists into Options.
-// For sshkey module, passwords are loaded as SSH key paths.
+// The sshkey module loads SSH key paths; ssh-hole adds one long-password probe
+// when defaults are enabled.
 func (s *Scanner) loadCredentials() {
 	if s.Opts.Usernames != "" {
 		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
 	}
 	if s.Opts.Defaults {
 		s.Opts.UsernameList = append(s.Opts.UsernameList, wordlists.DefaultUsernames...)
+		if s.Opts.Command == "ssh-hole" {
+			s.Opts.UsernameList = appendSSHHoleDefaultUsername(s.Opts.UsernameList)
+		}
 	}
 
 	if s.Opts.Passwords != "" {
@@ -205,6 +209,8 @@ func (s *Scanner) loadCredentials() {
 	if s.Opts.Defaults {
 		if s.Opts.Command == "sshkey" {
 			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultSSHKeys...)
+		} else if s.Opts.Command == "ssh-hole" {
+			s.Opts.PasswordList = append(s.Opts.PasswordList, modules.SSHHoleProbePassword())
 		} else {
 			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultPasswords...)
 		}
@@ -239,9 +245,27 @@ func (s *Scanner) loadCredentials() {
 	if len(extraCreds) > 0 {
 		s.Opts.ComboList = append(extraCreds, s.Opts.ComboList...)
 	}
+
+	if s.Opts.Command == "ssh-hole" {
+		// This command is a vulnerability check, so a successful ordinary
+		// credential must not be reported as an sshhole finding.
+		s.Opts.ComboList = nil
+		if s.Opts.Defaults {
+			s.Opts.PasswordList = []string{modules.SSHHoleProbePassword()}
+		}
+	}
 }
 
-// buildPasswordLists creates separate default and sshkey password lists for nmap/stdin mode.
+func appendSSHHoleDefaultUsername(usernames []string) []string {
+	for _, username := range usernames {
+		if username == "alpine" {
+			return usernames
+		}
+	}
+	return append(usernames, "alpine")
+}
+
+// buildPasswordLists creates default and sshkey password lists for nmap/stdin mode.
 // Returns (defaultPasswords, sshkeyPasswords).
 func (s *Scanner) buildPasswordLists() ([]string, []string) {
 	var userPasswords []string
@@ -487,7 +511,16 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 			continue
 		}
 
-		if defaultCredsWork {
+		if defaultCredsWork && s.Opts.Command == "ssh-hole" {
+			// The ssh-hole module's initial probe only establishes connectivity.
+			// A successful short password is not evidence of the long-password
+			// bypass, so let the dedicated payload run and report only that result.
+			target.Mutex.Lock()
+			target.Success = false
+			target.Mutex.Unlock()
+		}
+
+		if defaultCredsWork && s.Opts.Command != "ssh-hole" {
 			s.Results <- &Result{
 				Command:        s.Opts.Command,
 				IP:             target.IP,

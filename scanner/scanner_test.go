@@ -56,6 +56,31 @@ func newTestScanner(opts *Options) *Scanner {
 	}
 }
 
+func TestLoadCredentialsSSHHoleDefaults(t *testing.T) {
+	s := newTestScanner(&Options{Defaults: true, Command: "ssh-hole"})
+	s.loadCredentials()
+
+	if len(s.Opts.PasswordList) != 1 {
+		t.Fatalf("password count = %d, want exactly one sshhole probe", len(s.Opts.PasswordList))
+	}
+	if got := s.Opts.PasswordList[0]; got != modules.SSHHoleProbePassword() || len(got) != 300 {
+		t.Fatalf("probe password length/content = %d bytes, want 300 As", len(got))
+	}
+
+	for _, username := range []string{"root", "alpine"} {
+		found := false
+		for _, candidate := range s.Opts.UsernameList {
+			if candidate == username {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("default usernames do not include %q", username)
+		}
+	}
+}
+
 // --- ThreadHandler tests ---
 
 func TestThreadHandler_BasicSuccess(t *testing.T) {
@@ -328,6 +353,47 @@ func TestParallelHandler_DispatchesToTarget(t *testing.T) {
 	// probe succeeds with default creds → at least one result
 	if len(results) == 0 {
 		t.Error("expected at least one result from ParallelHandler")
+	}
+}
+
+func TestParallelHandlerSSHHoleReportsOnlyLongProbe(t *testing.T) {
+	handler := func(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *modules.Target, cred *modules.Credential) (bool, error) {
+		return true, nil
+	}
+	module := &modules.Module{
+		DefaultPort:     22,
+		Handler:         handler,
+		DefaultUsername: "root",
+		DefaultPassword: "short-password",
+	}
+	s := newTestScanner(&Options{
+		Command:       "ssh-hole",
+		Parallel:      1,
+		Threads:       1,
+		StopOnSuccess: true,
+		UsernameList:  []string{"root"},
+		PasswordList:  []string{modules.SSHHoleProbePassword()},
+	})
+
+	go func() {
+		s.Targets <- newTestTarget("127.0.0.1", 22)
+		close(s.Targets)
+	}()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	s.ParallelHandler(context.Background(), &wg, module)
+	wg.Wait()
+	close(s.Results)
+
+	var results []Result
+	for result := range s.Results {
+		results = append(results, *result)
+	}
+	if len(results) != 1 {
+		t.Fatalf("result count = %d, want one long-password result", len(results))
+	}
+	if results[0].Password != modules.SSHHoleProbePassword() {
+		t.Fatal("reported result was the initial default credential, not the sshhole probe")
 	}
 }
 

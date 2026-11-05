@@ -32,7 +32,7 @@ Created by Maksim Radaev/[@vflame6](https://github.com/vflame6)
 
 | Category | Modules |
 |----------|---------|
-| **Remote Access** | `ssh`, `sshkey`, `rdp`, `winrm`, `telnet`, `rexec`, `rlogin`, `rsh`, `vnc`, `radmin`, `vmauthd` |
+| **Remote Access** | `ssh`, `sshkey`, `ssh-hole`, `rdp`, `winrm`, `telnet`, `rexec`, `rlogin`, `rsh`, `vnc`, `radmin`, `vmauthd` |
 | **Databases** | `mysql`, `mssql`, `postgres`, `oracle`, `mongo`, `redis`, `clickhouse`, `cassandra`, `neo4j`, `etcd`, `influxdb`, `firebird`, `memcached`, `couchdb`, `elasticsearch` |
 | **Mail** | `smtp`, `smtp-enum`, `imap`, `pop3`, `nntp` |
 | **Web / HTTP** | `http-basic`, `http-form`, `http-proxy`, `vault` |
@@ -92,7 +92,7 @@ Flags:
   -o, --output=""              Filename to write output in raw format
       --[no-]version           Show application version.
 
-Commands: all amqp asterisk cassandra cisco cisco-enable clickhouse cobaltstrike couchdb elasticsearch etcd firebird ftp http-basic http-form http-proxy imap influxdb irc ldap memcached mongo mssql mysql neo4j nntp oracle pop3 postgres radmin rdp redis rexec rlogin rpcap rsh rtsp s7 sip smb smpp smtp smtp-enum snmp socks5 ssh sshkey svn teamspeak telnet vault vmauthd vnc winrm xmpp 
+Commands: all amqp asterisk cassandra cisco cisco-enable clickhouse cobaltstrike couchdb elasticsearch etcd firebird ftp http-basic http-form http-proxy imap influxdb irc ldap memcached mongo mssql mysql neo4j nntp oracle pop3 postgres radmin rdp redis rexec rlogin rpcap rsh rtsp s7 sip smb smpp smtp smtp-enum snmp socks5 ssh ssh-hole sshkey svn teamspeak telnet vault vmauthd vnc winrm xmpp
 ```
 
 ### Quick Examples
@@ -121,6 +121,8 @@ bruter mysql -t 10.0.0.5:3306 --defaults
 nmap -sV -oG scan.gnmap 10.0.0.0/24
 bruter all -n scan.gnmap --defaults
 ```
+
+With `--defaults`, SSH targets also get an sshhole check. It tries one 300-character password with common SSH usernames, including `alpine`, and reports a successful login under the `ssh-hole` protocol. You can run that check by itself with `bruter ssh-hole --defaults -t targets.txt`.
 
 **Filter specific services from scan results:**
 

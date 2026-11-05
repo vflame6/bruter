@@ -211,18 +211,22 @@ func TestGroupByHost_SSHKeyExpansion(t *testing.T) {
 	if !commands["sshkey"] {
 		t.Error("expected 'sshkey' service to be auto-expanded")
 	}
-	if len(groups[0]) != 2 {
-		t.Errorf("expected exactly 2 services (ssh + sshkey), got %d", len(groups[0]))
+	if !commands["ssh-hole"] {
+		t.Error("expected 'ssh-hole' service to be auto-expanded")
+	}
+	if len(groups[0]) != 3 {
+		t.Errorf("expected exactly 3 services (ssh + sshkey + ssh-hole), got %d", len(groups[0]))
 	}
 }
 
 func TestGroupByHost_SSHKeyNoDoubleExpansion(t *testing.T) {
 	s := &Scanner{Opts: &Options{Defaults: true, ConcurrentServices: 5}}
 
-	// Both ssh and sshkey already present — should not duplicate sshkey
+	// Existing SSH-related services should not be duplicated.
 	targets := []parser.Target{
 		{Host: "10.0.0.1", Port: 22, Service: "ssh"},
 		{Host: "10.0.0.1", Port: 22, Service: "sshkey"},
+		{Host: "10.0.0.1", Port: 22, Service: "ssh-hole"},
 	}
 
 	groups := s.groupByHost(targets)
@@ -239,5 +243,14 @@ func TestGroupByHost_SSHKeyNoDoubleExpansion(t *testing.T) {
 	}
 	if sshkeyCount != 1 {
 		t.Errorf("expected exactly 1 sshkey entry, got %d", sshkeyCount)
+	}
+	sshHoleCount := 0
+	for _, svc := range groups[0] {
+		if svc.command == "ssh-hole" {
+			sshHoleCount++
+		}
+	}
+	if sshHoleCount != 1 {
+		t.Errorf("expected exactly 1 ssh-hole entry, got %d", sshHoleCount)
 	}
 }

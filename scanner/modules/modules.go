@@ -56,6 +56,7 @@ var Modules = map[string]Module{
 	"snmp":          {161, SNMPHandler, "", "public"},
 	"socks5":        {1080, SOCKS5Handler, "admin", "admin"},
 	"ssh":           {22, SSHHandler, "root", "123456"},
+	"ssh-hole":      {22, SSHHoleHandler, "root", "bruter-sshhole-probe"},
 	"sshkey":        {22, SSHKeyHandler, "root", "/path/to/key"},
 	"svn":           {3690, SVNHandler, "admin", "admin"},
 	"teamspeak":     {10011, TeamSpeakHandler, "serveradmin", "admin"},
@@ -64,8 +65,8 @@ var Modules = map[string]Module{
 	"vmauthd":       {902, VMAuthdHandler, "root", "vmware"},
 	"xmpp":          {5222, XMPPHandler, "admin", "admin"},
 	"rdp":           {3389, RDPHandler, "Administrator", "password"},
-	"vnc":          {5900, VNCHandler, "", "admin"},
-	"winrm":        {5985, WinRMHandler, "Administrator", "password"},
+	"vnc":           {5900, VNCHandler, "", "admin"},
+	"winrm":         {5985, WinRMHandler, "Administrator", "password"},
 }
 
 type Module struct {

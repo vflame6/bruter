@@ -121,6 +121,7 @@ var (
 	snmpCommand          = app.Command("snmp", "SNMP v1/v2c community string module (port 161 UDP)")
 	socks5Command        = app.Command("socks5", "SOCKS5 username/password authentication module (port 1080)")
 	sshCommand           = app.Command("ssh", "SSH module (port 22)")
+	sshHoleCommand       = app.Command("ssh-hole", "SSH password-length bypass check for sshhole (port 22)")
 	sshkeyCommand        = app.Command("sshkey", "SSH public key authentication module (port 22)")
 	svnCommand           = app.Command("svn", "Subversion HTTP/WebDAV module (port 3690)")
 	teamSpeakCommand     = app.Command("teamspeak", "TeamSpeak 3 ServerQuery module (port 10011)")
@@ -140,7 +141,7 @@ var (
 		mysqlCommand, neo4jCommand, nntpCommand, oracleCommand, pop3Command, postgresCommand,
 		radminCommand, rdpCommand, redisCommand, rexecCommand, rloginCommand, rpcapCommand,
 		rshCommand, rtspCommand, s7Command, sipCommand, smbCommand, smppCommand, smtpCommand,
-		smtpEnumCommand, snmpCommand, socks5Command, sshCommand, sshkeyCommand, svnCommand,
+		smtpEnumCommand, snmpCommand, socks5Command, sshCommand, sshHoleCommand, sshkeyCommand, svnCommand,
 		teamSpeakCommand, telnetCommand, vaultCommand, vmauthdCommand, vncCommand, winrmCommand,
 		xmppCommand,
 	}
