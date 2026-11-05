@@ -122,8 +122,6 @@ nmap -sV -oG scan.gnmap 10.0.0.0/24
 bruter all -n scan.gnmap --defaults
 ```
 
-With `--defaults`, SSH targets also get an sshhole check. It tries one 300-character password with common SSH usernames, including `alpine`, and reports a successful login under the `ssh-hole` protocol. You can run that check by itself with `bruter ssh-hole --defaults -t targets.txt`.
-
 **Filter specific services from scan results:**
 
 ```shell
