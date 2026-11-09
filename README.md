@@ -61,28 +61,35 @@ bruter is a network services bruteforce tool.
 Flags:
   -h, --[no-]help              Show context-sensitive help (also try --help-long and --help-man).
   -t, --target=TARGET          Target host or file with targets. Format host or host:port, one per line
-  -n, --input-file=INPUT-FILE  Scan output file (nmap GNMAP/XML, Nessus .nessus, Nexpose XML — auto-detected). Use with 'all' command.
+  -n, --input-file=INPUT-FILE  Scan output file (nmap GNMAP/XML, Nessus .nessus, Nexpose XML — auto-detected).
+                               Use with 'all' command.
   -u, --username=USERNAME      Username or file with usernames
   -p, --password=PASSWORD      Password or file with passwords
       --combo=COMBO            Combo wordlist file with user:pass pairs, one per line
-      --[no-]defaults          Use built-in default username and password wordlists (user-specified -u/-p take priority)
+      --[no-]defaults          Use built-in default username and password wordlists (user-specified -u/-p take
+                               priority)
+      --[no-]vulns             Run auth vulnerability checks and protocol default credentials only (no wordlist
+                               brute-force)
       --[no-]user-as-pass      Try username as password for each user
       --[no-]blank             Try blank/empty password for each user
       --[no-]reversed          Try reversed username as password for each user
   -N, --concurrent-services=4  Number of services to scan on host in parallel ('all' only)
   -C, --concurrent-hosts=32    Number of hosts in parallel
-  -c, --concurrent-threads=10  Number of parallel threads per service
+  -c, --concurrent-threads=5   Number of parallel threads per service
       --[no-]no-stats          Disable progress bar for better performance
   -d, --delay=0s               Delay between each attempt. Will always use single thread if set
       --timeout=10s            Connection timeout in seconds
-  -f, --[no-]stop-on-success   Stop bruteforcing current host when first valid credentials found (-f per host, -F global)
+  -f, --[no-]stop-on-success   Stop bruteforcing current host when first valid credentials found (-f per host,
+                               -F global)
   -F, --[no-]stop-on-success-global  
                                Stop the entire run on first successful login across all hosts
-      --max-retries=30         Number of connection errors to stop bruteforce the host. Specify 0 to disable this behavior
+      --max-retries=30         Number of connection errors to stop bruteforce the host. Specify 0 to disable this
+                               behavior
       --proxy=""               SOCKS-proxy address to use for connection in format IP:PORT
       --proxy-auth=""          Proxy username and password in format username:password
   -I, --iface=""               Network interface to bind outgoing connections to (e.g. eth0)
-      --user-agent="..."       User-Agent for HTTP connections
+      --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"  
+                               User-Agent for HTTP connections
   -s, --service=""             Filter services in 'all' mode (comma-separated, e.g. ftp,ssh,smb)
   -L, --[no-]list-services     List all supported services and exit
   -q, --[no-]quiet             Enable quiet mode, print results only
@@ -92,7 +99,7 @@ Flags:
   -o, --output=""              Filename to write output in raw format
       --[no-]version           Show application version.
 
-Commands: all amqp asterisk cassandra cisco cisco-enable clickhouse cobaltstrike couchdb elasticsearch etcd firebird ftp http-basic http-form http-proxy imap influxdb irc ldap memcached mongo mssql mysql neo4j nntp oracle pop3 postgres radmin rdp redis rexec rlogin rpcap rsh rtsp s7 sip smb smpp smtp smtp-enum snmp socks5 ssh ssh-hole sshkey svn teamspeak telnet vault vmauthd vnc winrm xmpp
+Commands: all amqp asterisk cassandra cisco cisco-enable clickhouse cobaltstrike couchdb elasticsearch etcd firebird ftp http-basic http-form http-proxy imap influxdb irc ldap memcached mongo mssql mysql neo4j nntp oracle pop3 postgres radmin rdp redis rexec rlogin rpcap rsh rtsp s7 sip smb smpp smtp smtp-enum snmp socks5 ssh sshkey svn teamspeak telnet vault vmauthd vnc winrm xmpp 
 ```
 
 ### Quick Examples
