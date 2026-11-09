@@ -56,3 +56,46 @@ func InfluxDBHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeou
 		return false, fmt.Errorf("unexpected HTTP status: %d", resp.StatusCode)
 	}
 }
+
+// InfluxDBNoAuthHandler checks if InfluxDB is accessible without authentication.
+func InfluxDBNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	hostPort := target.Addr()
+
+	scheme := "http"
+	if target.Encryption {
+		scheme = "https"
+	}
+
+	url := fmt.Sprintf("%s://%s/query?q=SHOW+DATABASES", scheme, hostPort)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return false, err
+	}
+
+	if net.ParseIP(target.OriginalTarget) == nil {
+		host := target.OriginalTarget
+		if h, _, err2 := net.SplitHostPort(target.OriginalTarget); err2 == nil {
+			host = h
+		}
+		req.Host = host
+	}
+
+	resp, err := dialer.HTTPClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+
+	switch resp.StatusCode {
+	case 200:
+		return true, nil
+	case 401, 403:
+		return false, nil
+	default:
+		return false, nil
+	}
+}

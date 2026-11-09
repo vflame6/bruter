@@ -27,8 +27,8 @@ func sshAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout
 	insecure := ssh.InsecureAlgorithms()
 
 	config := &ssh.ClientConfig{
-		User: credential.Username,
-		Auth: []ssh.AuthMethod{auth},
+		User:            credential.Username,
+		Auth:            []ssh.AuthMethod{auth},
 		Timeout:         timeout,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		Config: ssh.Config{

@@ -14,8 +14,8 @@ import (
 
 // VNC RFB security types
 const (
-	vncSecNone     = 1
-	vncSecVNCAuth  = 2
+	vncSecNone    = 1
+	vncSecVNCAuth = 2
 )
 
 // VNC auth results
@@ -167,6 +167,73 @@ func VNCHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout tim
 		// Some servers send result=2 for "too many attempts"
 		return false, nil
 	}
+}
+
+// VNCNoAuthHandler checks if a VNC server allows connections without authentication
+// by looking for security type 1 (None) in the server's offered security types.
+func VNCNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	addr := target.Addr()
+
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	verBuf := make([]byte, 12)
+	if _, err := io.ReadFull(conn, verBuf); err != nil {
+		return false, fmt.Errorf("vnc: read server version: %w", err)
+	}
+
+	var major, minor int
+	if _, err := fmt.Sscanf(string(verBuf), "RFB %d.%d\n", &major, &minor); err != nil {
+		return false, fmt.Errorf("vnc: invalid server version: %q", string(verBuf))
+	}
+
+	clientVer := "RFB 003.008\n"
+	if major < 3 || (major == 3 && minor < 7) {
+		clientVer = fmt.Sprintf("RFB %03d.%03d\n", major, minor)
+	}
+	if _, err := conn.Write([]byte(clientVer)); err != nil {
+		return false, fmt.Errorf("vnc: write client version: %w", err)
+	}
+
+	if major == 3 && minor < 7 {
+		var secType uint32
+		if err := binary.Read(conn, binary.BigEndian, &secType); err != nil {
+			return false, fmt.Errorf("vnc: read security type: %w", err)
+		}
+		if secType == vncSecNone {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	var numTypes uint8
+	if err := binary.Read(conn, binary.BigEndian, &numTypes); err != nil {
+		return false, fmt.Errorf("vnc: read num security types: %w", err)
+	}
+	if numTypes == 0 {
+		return false, nil
+	}
+
+	types := make([]byte, numTypes)
+	if _, err := io.ReadFull(conn, types); err != nil {
+		return false, fmt.Errorf("vnc: read security types: %w", err)
+	}
+
+	for _, t := range types {
+		if t == vncSecNone {
+			if _, err := conn.Write([]byte{vncSecNone}); err != nil {
+				return false, fmt.Errorf("vnc: write security selection: %w", err)
+			}
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // readFailureReason reads a uint32 length-prefixed reason string from the connection.

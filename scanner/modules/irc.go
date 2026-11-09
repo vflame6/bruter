@@ -54,3 +54,38 @@ func IRCHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout tim
 		}
 	}
 }
+
+// IRCNoPasswordHandler checks if an IRC server allows connections without a server password.
+func IRCNoPasswordHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	addr := target.Addr()
+
+	conn, err := dialer.DialAutoContext(ctx, "tcp", addr, target.Encryption)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	_, err = fmt.Fprintf(conn, "NICK bruter\r\nUSER bruter 0 * :bruter\r\n")
+	if err != nil {
+		return false, err
+	}
+
+	reader := bufio.NewReader(conn)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return false, err
+		}
+		switch {
+		case strings.Contains(line, " 001 "):
+			return true, nil
+		case strings.Contains(line, " 464 "):
+			return false, nil
+		case strings.HasPrefix(line, "PING "):
+			token := strings.TrimSpace(strings.TrimPrefix(line, "PING "))
+			_, _ = fmt.Fprintf(conn, "PONG %s\r\n", token)
+		}
+	}
+}

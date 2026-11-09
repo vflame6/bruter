@@ -71,3 +71,48 @@ func HTTPProxyHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeo
 		return false, fmt.Errorf("unexpected proxy response: %s", parts[1])
 	}
 }
+
+// HTTPProxyNoAuthHandler checks if an HTTP proxy forwards requests without authentication.
+func HTTPProxyNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	addr := target.Addr()
+
+	conn, err := dialer.DialAutoContext(ctx, "tcp", addr, target.Encryption)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	request := fmt.Sprintf(
+		"GET http://www.example.com/ HTTP/1.0\r\n"+
+			"Host: www.example.com\r\n"+
+			"User-Agent: %s\r\n"+
+			"\r\n",
+		dialer.UserAgent,
+	)
+
+	if _, err = conn.Write([]byte(request)); err != nil {
+		return false, err
+	}
+
+	reader := bufio.NewReader(conn)
+	statusLine, err := reader.ReadString('\n')
+	if err != nil {
+		return false, err
+	}
+
+	parts := strings.SplitN(strings.TrimSpace(statusLine), " ", 3)
+	if len(parts) < 2 {
+		return false, nil
+	}
+
+	switch parts[1] {
+	case "200", "301", "302", "303", "307", "308":
+		return true, nil
+	case "407":
+		return false, nil
+	default:
+		return false, nil
+	}
+}

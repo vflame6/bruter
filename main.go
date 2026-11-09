@@ -40,6 +40,7 @@ var (
 	passwordFlag   = app.Flag("password", "Password or file with passwords").Short('p').String()
 	comboFlag      = app.Flag("combo", "Combo wordlist file with user:pass pairs, one per line").String()
 	defaultsFlag   = app.Flag("defaults", "Use built-in default username and password wordlists (user-specified -u/-p take priority)").Default("false").Bool()
+	vulnsFlag      = app.Flag("vulns", "Run auth vulnerability checks and protocol default credentials only (no wordlist brute-force)").Default("false").Bool()
 	userAsPassFlag = app.Flag("user-as-pass", "Try username as password for each user").Default("false").Bool()
 	blankFlag      = app.Flag("blank", "Try blank/empty password for each user").Default("false").Bool()
 	reversedFlag   = app.Flag("reversed", "Try reversed username as password for each user").Default("false").Bool()
@@ -121,7 +122,6 @@ var (
 	snmpCommand          = app.Command("snmp", "SNMP v1/v2c community string module (port 161 UDP)")
 	socks5Command        = app.Command("socks5", "SOCKS5 username/password authentication module (port 1080)")
 	sshCommand           = app.Command("ssh", "SSH module (port 22)")
-	sshHoleCommand       = app.Command("ssh-hole", "SSH password-length bypass check for sshhole (port 22)")
 	sshkeyCommand        = app.Command("sshkey", "SSH public key authentication module (port 22)")
 	svnCommand           = app.Command("svn", "Subversion HTTP/WebDAV module (port 3690)")
 	teamSpeakCommand     = app.Command("teamspeak", "TeamSpeak 3 ServerQuery module (port 10011)")
@@ -141,7 +141,7 @@ var (
 		mysqlCommand, neo4jCommand, nntpCommand, oracleCommand, pop3Command, postgresCommand,
 		radminCommand, rdpCommand, redisCommand, rexecCommand, rloginCommand, rpcapCommand,
 		rshCommand, rtspCommand, s7Command, sipCommand, smbCommand, smppCommand, smtpCommand,
-		smtpEnumCommand, snmpCommand, socks5Command, sshCommand, sshHoleCommand, sshkeyCommand, svnCommand,
+		smtpEnumCommand, snmpCommand, socks5Command, sshCommand, sshkeyCommand, svnCommand,
 		teamSpeakCommand, telnetCommand, vaultCommand, vmauthdCommand, vncCommand, winrmCommand,
 		xmppCommand,
 	}
@@ -302,10 +302,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Validate: credentials are required in both modes (unless --combo, --defaults, or credential mutation flags are provided)
+	// Validate: credentials are required in both modes (unless --combo, --defaults, --vulns, or credential mutation flags are provided)
 	hasCredMutation := *userAsPassFlag || *blankFlag || *reversedFlag
-	if *comboFlag == "" && !*defaultsFlag && !hasCredMutation && (*usernameFlag == "" || *passwordFlag == "") {
-		fmt.Fprintln(os.Stderr, "error: provide --username and --password, --combo, --defaults, or credential flags (--user-as-pass/--blank/--reversed), try --help")
+	if *comboFlag == "" && !*defaultsFlag && !*vulnsFlag && !hasCredMutation && (*usernameFlag == "" || *passwordFlag == "") {
+		fmt.Fprintln(os.Stderr, "error: provide --username and --password, --combo, --defaults, --vulns, or credential flags (--user-as-pass/--blank/--reversed), try --help")
 		os.Exit(1)
 	}
 	// Credential mutations require usernames
@@ -333,6 +333,7 @@ func main() {
 		Usernames:  *usernameFlag,
 		Passwords:  *passwordFlag,
 		Defaults:   *defaultsFlag,
+		Vulns:      *vulnsFlag || *defaultsFlag,
 		UserAsPass: *userAsPassFlag,
 		Blank:      *blankFlag,
 		Reversed:   *reversedFlag,

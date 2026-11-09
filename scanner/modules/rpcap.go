@@ -76,3 +76,43 @@ func RPCAPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 	}
 	return false, nil
 }
+
+// RPCAPNoAuthHandler checks if RPCAP allows connections without authentication (null auth).
+func RPCAPNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	addr := target.Addr()
+
+	conn, err := dialer.DialAutoContext(ctx, "tcp", addr, target.Encryption)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	// RPCAP auth request with null auth (auth_type=0x0000)
+	packet := []byte{
+		0x00,       // version
+		0x08,       // opcode: auth request
+		0x00, 0x00, // unused
+		0x00, 0x00, 0x00, 0x08, // payload length = 8
+		0x00, 0x00, // auth type: null (0x0000)
+		0x00, 0x00, // padding
+		0x00, 0x00, // reserved
+		0x00, 0x00, // no username/password lengths
+	}
+
+	if _, err = conn.Write(packet); err != nil {
+		return false, err
+	}
+
+	resp := make([]byte, 8)
+	n, err := conn.Read(resp)
+	if err != nil || n < 2 {
+		return false, err
+	}
+
+	if resp[1] == 0x88 {
+		return true, nil
+	}
+	return false, nil
+}

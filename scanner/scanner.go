@@ -62,6 +62,7 @@ type Options struct {
 	Blank               bool   // --blank: try empty password
 	Reversed            bool   // --reversed: try reversed username as password
 	ServiceFilter       string // --service: filter services in all mode
+	Vulns               bool   // --vulns: run auth vulnerability checks and protocol default creds only
 }
 
 type Result struct {
@@ -86,6 +87,11 @@ type dashboardConfig struct {
 	ServiceCount int      // number of distinct services
 	TargetCount  int      // total service:port targets
 	ServiceNames []string // identified service names (sorted)
+
+	// Vuln check info
+	VulnCheckCount   int
+	DefaultCredCount int
+	VulnCheckNames   []string
 }
 
 // printDashboard prints a configuration dashboard before the scan starts.
@@ -109,6 +115,14 @@ func (s *Scanner) printDashboard(cfg dashboardConfig) {
 		fmt.Printf(" [+] Source:              %s\n", cfg.Source)
 		fmt.Printf(" [+] Services:            %s (%d)\n", strings.Join(cfg.ServiceNames, ", "), cfg.ServiceCount)
 		fmt.Printf(" [+] Total targets:       %d\n", cfg.TargetCount)
+	}
+
+	// Vuln checks info
+	if o.Vulns && cfg.VulnCheckCount > 0 {
+		fmt.Printf(" [+] Vuln checks:         %d (%s)\n", cfg.VulnCheckCount, strings.Join(cfg.VulnCheckNames, ", "))
+	}
+	if o.Vulns && cfg.DefaultCredCount > 0 {
+		fmt.Printf(" [+] Default creds:       %d\n", cfg.DefaultCredCount)
 	}
 
 	// Credentials (shared)
@@ -186,17 +200,37 @@ func reverseString(s string) string {
 }
 
 // loadCredentials pre-loads usernames, passwords, and combo lists into Options.
-// The sshkey module loads SSH key paths; ssh-hole adds one long-password probe
-// when defaults are enabled.
+// When --vulns is set without --defaults, no wordlists are loaded (vuln checks
+// and default creds carry their own credentials in the module registry).
 func (s *Scanner) loadCredentials() {
+	// --vulns without --defaults: no wordlist loading needed
+	if s.Opts.Vulns && !s.Opts.Defaults {
+		// Still load user-supplied -u/-p if provided (for targeted vuln scans)
+		if s.Opts.Usernames != "" {
+			s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
+		}
+		if s.Opts.Passwords != "" {
+			s.Opts.PasswordList = utils.LoadLines(s.Opts.Passwords)
+		}
+		if s.Opts.Combo != "" {
+			for _, line := range utils.LoadLines(s.Opts.Combo) {
+				parts := strings.SplitN(line, ":", 2)
+				if len(parts) == 2 {
+					s.Opts.ComboList = append(s.Opts.ComboList, modules.Credential{
+						Username: parts[0],
+						Password: parts[1],
+					})
+				}
+			}
+		}
+		return
+	}
+
 	if s.Opts.Usernames != "" {
 		s.Opts.UsernameList = utils.LoadLines(s.Opts.Usernames)
 	}
 	if s.Opts.Defaults {
 		s.Opts.UsernameList = append(s.Opts.UsernameList, wordlists.DefaultUsernames...)
-		if s.Opts.Command == "ssh-hole" {
-			s.Opts.UsernameList = appendSSHHoleDefaultUsername(s.Opts.UsernameList)
-		}
 	}
 
 	if s.Opts.Passwords != "" {
@@ -209,8 +243,6 @@ func (s *Scanner) loadCredentials() {
 	if s.Opts.Defaults {
 		if s.Opts.Command == "sshkey" {
 			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultSSHKeys...)
-		} else if s.Opts.Command == "ssh-hole" {
-			s.Opts.PasswordList = append(s.Opts.PasswordList, modules.SSHHoleProbePassword())
 		} else {
 			s.Opts.PasswordList = append(s.Opts.PasswordList, wordlists.DefaultPasswords...)
 		}
@@ -228,8 +260,6 @@ func (s *Scanner) loadCredentials() {
 		}
 	}
 
-	// Generate extra credential pairs from usernames.
-	// These are prepended to ComboList so they're tried first (quick wins).
 	var extraCreds []modules.Credential
 	for _, user := range s.Opts.UsernameList {
 		if s.Opts.Blank {
@@ -245,24 +275,6 @@ func (s *Scanner) loadCredentials() {
 	if len(extraCreds) > 0 {
 		s.Opts.ComboList = append(extraCreds, s.Opts.ComboList...)
 	}
-
-	if s.Opts.Command == "ssh-hole" {
-		// This command is a vulnerability check, so a successful ordinary
-		// credential must not be reported as an sshhole finding.
-		s.Opts.ComboList = nil
-		if s.Opts.Defaults {
-			s.Opts.PasswordList = []string{modules.SSHHoleProbePassword()}
-		}
-	}
-}
-
-func appendSSHHoleDefaultUsername(usernames []string) []string {
-	for _, username := range usernames {
-		if username == "alpine" {
-			return usernames
-		}
-	}
-	return append(usernames, "alpine")
 }
 
 // buildPasswordLists creates default and sshkey password lists for nmap/stdin mode.
@@ -425,11 +437,19 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 
 	// print startup configuration dashboard
 	if !logger.IsQuiet() {
-		s.printDashboard(dashboardConfig{
+		cfg := dashboardConfig{
 			Module:    command,
 			Targets:   targets,
 			HostCount: count,
-		})
+		}
+		if s.Opts.Vulns {
+			cfg.VulnCheckCount = len(c.VulnChecks)
+			cfg.DefaultCredCount = len(c.DefaultCreds)
+			for _, vc := range c.VulnChecks {
+				cfg.VulnCheckNames = append(cfg.VulnCheckNames, vc.Name)
+			}
+		}
+		s.printDashboard(cfg)
 	}
 
 	// show which module is executed
@@ -511,16 +531,7 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 			continue
 		}
 
-		if defaultCredsWork && s.Opts.Command == "ssh-hole" {
-			// The ssh-hole module's initial probe only establishes connectivity.
-			// A successful short password is not evidence of the long-password
-			// bypass, so let the dedicated payload run and report only that result.
-			target.Mutex.Lock()
-			target.Success = false
-			target.Mutex.Unlock()
-		}
-
-		if defaultCredsWork && s.Opts.Command != "ssh-hole" {
+		if defaultCredsWork {
 			s.Results <- &Result{
 				Command:        s.Opts.Command,
 				IP:             target.IP,
@@ -536,6 +547,23 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 			if s.Opts.StopOnSuccess || s.Opts.GlobalStop {
 				continue
 			}
+		}
+
+		// run vuln checks and default creds when --vulns or --defaults is set
+		if s.Opts.Vulns {
+			stopped := s.runVulnChecks(ctx, module, target)
+			if stopped {
+				continue
+			}
+			stopped = s.runDefaultCreds(ctx, module, target)
+			if stopped {
+				continue
+			}
+		}
+
+		// skip wordlist brute-force when --vulns is set without --defaults
+		if s.Opts.Vulns && !s.Opts.Defaults {
+			continue
 		}
 
 		// wait for delay before start
@@ -595,6 +623,133 @@ func (s *Scanner) probe(ctx context.Context, module *modules.Module, target *mod
 
 	logger.Debugf("failed to connect to %s:%d: %v", target.IP, target.Port, err)
 	return false, false
+}
+
+// runVulnChecks executes module-defined vulnerability checks (e.g. ssh-hole, anonymous login).
+// Returns true if stop-on-success triggered and brute-force should be skipped.
+func (s *Scanner) runVulnChecks(ctx context.Context, module *modules.Module, target *modules.Target) bool {
+	for _, check := range module.VulnChecks {
+		if ctx.Err() != nil {
+			return true
+		}
+		if s.Opts.GlobalStop && s.globalDone.Load() {
+			return true
+		}
+		if s.Opts.StopOnSuccess && target.Success {
+			return true
+		}
+
+		for _, cred := range check.Creds {
+			if ctx.Err() != nil {
+				return true
+			}
+
+			c := cred
+			logger.Debugf("vuln check %s: trying %s:%s on %s:%d", check.Name, c.Username, c.Password, target.IP, target.Port)
+			s.Attempts.Add(1)
+
+			ok, err := check.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, &c)
+
+			if s.Opts.Verbose {
+				status := "FAIL"
+				if err != nil {
+					status = "ERROR"
+				}
+				if ok {
+					status = "SUCCESS"
+				}
+				logger.Verbosef("%s %s %s:%s -> %s",
+					check.Name,
+					net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port)),
+					c.Username, c.Password, status,
+				)
+			}
+
+			if ok {
+				target.Mutex.Lock()
+				target.Success = true
+				target.Mutex.Unlock()
+
+				s.Results <- &Result{
+					Command:        check.Name,
+					IP:             target.IP,
+					Port:           target.Port,
+					Username:       c.Username,
+					Password:       c.Password,
+					OriginalTarget: target.OriginalTarget,
+					Timestamp:      time.Now(),
+				}
+				if s.Opts.GlobalStop {
+					s.globalDone.Store(true)
+				}
+				if s.Opts.StopOnSuccess || s.Opts.GlobalStop {
+					return true
+				}
+				break
+			}
+		}
+	}
+	return false
+}
+
+// runDefaultCreds tests module-specific known default credentials.
+// Returns true if stop-on-success triggered.
+func (s *Scanner) runDefaultCreds(ctx context.Context, module *modules.Module, target *modules.Target) bool {
+	for _, cred := range module.DefaultCreds {
+		if ctx.Err() != nil {
+			return true
+		}
+		if s.Opts.GlobalStop && s.globalDone.Load() {
+			return true
+		}
+		if s.Opts.StopOnSuccess && target.Success {
+			return true
+		}
+
+		c := cred
+		logger.Debugf("default cred: trying %s:%s on %s:%d", c.Username, c.Password, target.IP, target.Port)
+		s.Attempts.Add(1)
+
+		ok, err := module.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, &c)
+
+		if s.Opts.Verbose {
+			status := "FAIL"
+			if err != nil {
+				status = "ERROR"
+			}
+			if ok {
+				status = "SUCCESS"
+			}
+			logger.Verbosef("%s %s %s:%s -> %s",
+				s.Opts.Command,
+				net.JoinHostPort(target.IP.String(), strconv.Itoa(target.Port)),
+				c.Username, c.Password, status,
+			)
+		}
+
+		if ok {
+			target.Mutex.Lock()
+			target.Success = true
+			target.Mutex.Unlock()
+
+			s.Results <- &Result{
+				Command:        s.Opts.Command,
+				IP:             target.IP,
+				Port:           target.Port,
+				Username:       c.Username,
+				Password:       c.Password,
+				OriginalTarget: target.OriginalTarget,
+				Timestamp:      time.Now(),
+			}
+			if s.Opts.GlobalStop {
+				s.globalDone.Store(true)
+			}
+			if s.Opts.StopOnSuccess || s.Opts.GlobalStop {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (s *Scanner) ThreadHandler(ctx context.Context, wg *sync.WaitGroup, credentials <-chan *modules.Credential, handler modules.ModuleHandler, target *modules.Target) {

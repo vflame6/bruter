@@ -149,6 +149,48 @@ func RTSPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout ti
 	}
 }
 
+// RTSPNoAuthHandler checks if an RTSP stream is accessible without authentication.
+func RTSPNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	addr := target.Addr()
+
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+	reader := bufio.NewReader(conn)
+	cseq := 1
+
+	for _, path := range rtspPaths {
+		rtspURL := fmt.Sprintf("rtsp://%s%s", addr, path)
+		request := fmt.Sprintf(
+			"DESCRIBE %s RTSP/1.0\r\nCSeq: %d\r\nAccept: application/sdp\r\n\r\n",
+			rtspURL, cseq,
+		)
+		cseq++
+
+		if _, err = fmt.Fprint(conn, request); err != nil {
+			return false, err
+		}
+
+		code, _, err := readRTSPResponse(reader)
+		if err != nil {
+			return false, err
+		}
+
+		if code == 200 {
+			return true, nil
+		}
+		if code == 401 || code == 403 {
+			return false, nil
+		}
+	}
+
+	return false, nil
+}
+
 // readRTSPResponse reads an RTSP response status line and headers.
 func readRTSPResponse(reader *bufio.Reader) (int, map[string]string, error) {
 	statusLine, err := reader.ReadString('\n')

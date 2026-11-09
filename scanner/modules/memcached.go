@@ -34,15 +34,15 @@ func MemcachedHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeo
 	// Memcached binary protocol header (24 bytes) + extras.
 	// Opcode 0x21 = SASL Auth
 	header := make([]byte, 24)
-	header[0] = 0x80              // Magic: request
-	header[1] = 0x21              // Opcode: SASL Auth
+	header[0] = 0x80                                                // Magic: request
+	header[1] = 0x21                                                // Opcode: SASL Auth
 	binary.BigEndian.PutUint16(header[2:4], uint16(len(mechanism))) // Key length
-	header[4] = 0                 // Extras length
-	header[5] = 0                 // Data type
-	binary.BigEndian.PutUint16(header[6:8], 0) // vbucket / status
+	header[4] = 0                                                   // Extras length
+	header[5] = 0                                                   // Data type
+	binary.BigEndian.PutUint16(header[6:8], 0)                      // vbucket / status
 	totalBody := len(mechanism) + len(authValue)
 	binary.BigEndian.PutUint32(header[8:12], uint32(totalBody)) // Total body length
-	binary.BigEndian.PutUint32(header[12:16], 0) // Opaque
+	binary.BigEndian.PutUint32(header[12:16], 0)                // Opaque
 	// CAS = 0 (bytes 16-23 already zeroed)
 
 	// Send header + mechanism + auth value.
@@ -76,6 +76,37 @@ func MemcachedHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeo
 	default:
 		return false, nil
 	}
+}
+
+// MemcachedNoAuthHandler checks if Memcached is accessible without SASL authentication
+// by sending a text-protocol "version" command.
+func MemcachedNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	addr := target.Addr()
+
+	conn, err := dialer.DialAutoContext(ctx, "tcp", addr, target.Encryption)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	if _, err = conn.Write([]byte("version\r\n")); err != nil {
+		return false, err
+	}
+
+	buf := make([]byte, 256)
+	n, err := conn.Read(buf)
+	if err != nil {
+		return false, err
+	}
+
+	response := string(buf[:n])
+	if len(response) >= 7 && response[:7] == "VERSION" {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // readFull reads exactly len(buf) bytes from conn.

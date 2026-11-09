@@ -75,3 +75,45 @@ func VaultHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 	// any other response
 	return false, fmt.Errorf("invalid server response, maybe the target is not a vault server: %v", err)
 }
+
+// VaultNoAuthHandler checks if Vault API is accessible without a token.
+func VaultNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	hostPort := target.Addr()
+	scheme := "http"
+	if target.Encryption {
+		scheme = "https"
+	}
+
+	url := fmt.Sprintf("%s://%s/v1/sys/health", scheme, hostPort)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return false, err
+	}
+
+	if net.ParseIP(target.OriginalTarget) == nil {
+		host := target.OriginalTarget
+		if h, _, err2 := net.SplitHostPort(target.OriginalTarget); err2 == nil {
+			host = h
+		}
+		req.Host = host
+	}
+
+	resp, err := dialer.HTTPClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+	bodyStr := string(body)
+
+	if resp.StatusCode == 200 && strings.Contains(bodyStr, "initialized") {
+		return true, nil
+	}
+
+	return false, nil
+}

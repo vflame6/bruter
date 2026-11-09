@@ -62,3 +62,44 @@ func NNTPHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout ti
 	}
 	return false, nil
 }
+
+// NNTPNoAuthHandler checks if an NNTP server allows access without authentication.
+func NNTPNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	addr := target.Addr()
+
+	conn, err := dialer.DialAutoContext(ctx, "tcp", addr, target.Encryption)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	reader := bufio.NewReader(conn)
+
+	greeting, err := reader.ReadString('\n')
+	if err != nil {
+		return false, err
+	}
+	if !strings.HasPrefix(greeting, "200") && !strings.HasPrefix(greeting, "201") {
+		return false, nil
+	}
+
+	if _, err = fmt.Fprintf(conn, "LIST\r\n"); err != nil {
+		return false, err
+	}
+
+	resp, err := reader.ReadString('\n')
+	if err != nil {
+		return false, err
+	}
+
+	if strings.HasPrefix(resp, "215") {
+		return true, nil
+	}
+	if strings.HasPrefix(resp, "480") {
+		return false, nil
+	}
+
+	return false, nil
+}

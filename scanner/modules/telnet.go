@@ -57,3 +57,34 @@ func TelnetHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout 
 	}
 	return false, nil
 }
+
+// TelnetNoPasswordHandler checks if a telnet service drops directly to a shell
+// without requiring login or password prompts.
+func TelnetNoPasswordHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	addr := target.Addr()
+
+	conn, err := dialer.DialAutoContext(ctx, "tcp", addr, target.Encryption)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	reader := bufio.NewReader(conn)
+
+	banner, err := readUntilPrompt(reader, []string{"$", "#", ">", "login:", "username:", "password:"})
+	if err != nil {
+		return false, err
+	}
+
+	lower := strings.ToLower(banner)
+	loginRequired := strings.Contains(lower, "login:") || strings.Contains(lower, "username:") || strings.Contains(lower, "password:")
+	hasShell := strings.Contains(lower, "$") || strings.Contains(lower, "#") || strings.Contains(lower, ">")
+
+	if hasShell && !loginRequired {
+		return true, nil
+	}
+
+	return false, nil
+}

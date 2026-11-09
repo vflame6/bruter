@@ -3,6 +3,7 @@ package modules
 import (
 	"context"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/vflame6/bruter/utils"
@@ -65,5 +66,47 @@ func EtcdHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout ti
 	}
 
 	// successful connection and authentication
+	return true, nil
+}
+
+// EtcdNoAuthHandler checks if etcd is accessible without authentication.
+func EtcdNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	dialOptions := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return dialer.DialContext(ctx, "tcp", addr)
+		}),
+	}
+
+	cfg := etcd.Config{
+		Logger:      etcdLogger,
+		DialOptions: dialOptions,
+		Endpoints:   []string{target.Addr()},
+		DialTimeout: timeout,
+	}
+	if target.Encryption {
+		cfg.TLS = utils.GetTLSConfig()
+	}
+
+	client, err := etcd.New(cfg)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = client.Close() }()
+
+	getCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	_, err = client.Get(getCtx, "health")
+	if err != nil {
+		errStr := err.Error()
+		if strings.Contains(errStr, "permission denied") ||
+			strings.Contains(errStr, "auth") ||
+			strings.Contains(errStr, "user name is empty") {
+			return false, nil
+		}
+		return false, err
+	}
+
 	return true, nil
 }

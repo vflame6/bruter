@@ -46,3 +46,31 @@ func CassandraHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeo
 
 	return true, nil
 }
+
+// CassandraNoAuthHandler checks if Cassandra is accessible without authentication.
+func CassandraNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	cluster := gocql.NewCluster(target.IP.String())
+	cluster.Port = target.Port
+	cluster.Timeout = timeout
+	cluster.ConnectTimeout = timeout
+	cluster.Dialer = dialer
+	cluster.Consistency = gocql.One
+	cluster.DisableInitialHostLookup = true
+	cluster.NumConns = 1
+	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 0}
+	cluster.ReconnectInterval = 0
+
+	if target.Encryption {
+		cluster.SslOpts = &gocql.SslOptions{
+			EnableHostVerification: false,
+		}
+	}
+
+	session, err := cluster.CreateSession()
+	if err != nil {
+		return false, nil
+	}
+	defer session.Close()
+
+	return true, nil
+}

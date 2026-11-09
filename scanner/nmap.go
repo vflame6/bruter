@@ -196,8 +196,6 @@ func (s *Scanner) processHost(ctx context.Context, services []hostService, defau
 		var passwords []string
 		if svc.command == "sshkey" {
 			passwords = sshkeyPasswords
-		} else if svc.command == "ssh-hole" {
-			passwords = []string{modules.SSHHoleProbePassword()}
 		} else {
 			passwords = defaultPasswords
 		}
@@ -216,14 +214,6 @@ func (s *Scanner) processHost(ctx context.Context, services []hostService, defau
 			svcOpts := *s.Opts
 			svcOpts.Command = command
 			svcOpts.PasswordList = passwords
-			if command == "ssh-hole" && svcOpts.Defaults {
-				svcOpts.UsernameList = appendSSHHoleDefaultUsername(append([]string(nil), svcOpts.UsernameList...))
-			}
-			if command == "ssh-hole" {
-				// Keep user-supplied combos from turning this vulnerability check
-				// into an ordinary credential scan with misleading result labels.
-				svcOpts.ComboList = nil
-			}
 			svcScanner.Opts = &svcOpts
 
 			// Feed single target
@@ -295,30 +285,29 @@ func (s *Scanner) groupByHost(targets []parser.Target) [][]hostService {
 		}
 	}
 
-	// When --defaults is set, also run the embedded-key and sshhole checks.
+	// When --defaults is set, also run the embedded-key check for SSH targets.
+	// ssh-hole is now handled via VulnChecks on the ssh module.
 	if s.Opts.Defaults {
 		for key, services := range hostMap {
 			for _, svc := range services {
 				if svc.command == "ssh" {
-					for _, check := range []string{"sshkey", "ssh-hole"} {
-						hasCheck := false
-						for _, existing := range hostMap[key] {
-							if existing.command == check {
-								hasCheck = true
-								break
-							}
+					hasCheck := false
+					for _, existing := range hostMap[key] {
+						if existing.command == "sshkey" {
+							hasCheck = true
+							break
 						}
-						if !hasCheck {
-							hostMap[key] = append(hostMap[key], hostService{
-								command: check,
-								target: &modules.Target{
-									IP:             svc.target.IP,
-									Port:           svc.target.Port,
-									OriginalTarget: svc.target.OriginalTarget,
-									Encryption:     true,
-								},
-							})
-						}
+					}
+					if !hasCheck {
+						hostMap[key] = append(hostMap[key], hostService{
+							command: "sshkey",
+							target: &modules.Target{
+								IP:             svc.target.IP,
+								Port:           svc.target.Port,
+								OriginalTarget: svc.target.OriginalTarget,
+								Encryption:     true,
+							},
+						})
 					}
 					break
 				}

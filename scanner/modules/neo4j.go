@@ -52,3 +52,39 @@ func Neo4jHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout t
 
 	return true, nil
 }
+
+// Neo4jNoAuthHandler checks if Neo4j has authentication disabled.
+func Neo4jNoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	scheme := "bolt"
+	if target.Encryption {
+		scheme = "bolt+s"
+	}
+
+	uri := scheme + "://" + target.Addr()
+
+	driver, err := neo4j.NewDriverWithContext(uri,
+		neo4j.NoAuth(),
+		func(cfg *neo4jconfig.Config) {
+			cfg.SocketConnectTimeout = timeout
+			cfg.ConnectionAcquisitionTimeout = timeout
+			cfg.MaxConnectionPoolSize = 1
+			if target.Encryption {
+				cfg.TlsConfig = utils.GetTLSConfig()
+			}
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = driver.Close(ctx) }()
+
+	authCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	err = driver.VerifyConnectivity(authCtx)
+	if err != nil {
+		return false, nil
+	}
+
+	return true, nil
+}

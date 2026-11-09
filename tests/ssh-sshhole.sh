@@ -60,5 +60,4 @@ fi
 printf '# Nmap test scan\nHost: 127.0.0.1 () Ports: %s/open/tcp//ssh///\n' "$port" > "$scan_file"
 
 cd "$root_dir"
-go run . ssh-hole --defaults -t "127.0.0.1:$port" -u locked -f -c 1
-
+go run . ssh --vulns -t "127.0.0.1:$port" -f -c 1

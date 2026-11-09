@@ -65,4 +65,32 @@ func SOCKS5Handler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout 
 	return false, nil // auth failure
 }
 
+// SOCKS5NoAuthHandler checks if a SOCKS5 proxy allows connections without authentication.
+func SOCKS5NoAuthHandler(ctx context.Context, dialer *utils.ProxyAwareDialer, timeout time.Duration, target *Target, credential *Credential) (bool, error) {
+	addr := target.Addr()
 
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = conn.Close() }()
+
+	_ = conn.SetDeadline(time.Now().Add(timeout))
+
+	// Propose "no authentication" method (0x00)
+	if _, err = conn.Write([]byte{0x05, 0x01, 0x00}); err != nil {
+		return false, err
+	}
+
+	resp := make([]byte, 2)
+	if _, err = utils.ReadFull(conn, resp); err != nil {
+		return false, err
+	}
+
+	// Server accepted no-authentication method
+	if resp[0] == 0x05 && resp[1] == 0x00 {
+		return true, nil
+	}
+
+	return false, nil
+}
