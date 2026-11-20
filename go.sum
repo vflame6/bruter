@@ -16,8 +16,8 @@ github.com/AzureAD/microsoft-authentication-library-for-go v1.8.0 h1:Nljr4q1GRA/
 github.com/AzureAD/microsoft-authentication-library-for-go v1.8.0/go.mod h1:Y33QHnf0FfdVewFFISOGe20mkZbxX4H839o955/PoeI=
 github.com/ClickHouse/ch-go v0.75.0 h1:GZ3gyLVK8VsgU5M3tjXthUqefgNf9dPAfosx1k+EJ0g=
 github.com/ClickHouse/ch-go v0.75.0/go.mod h1:ON7yTiWA2F/xQ5cxb7h9ef/nv8ziLNLKTs0B9CDuZsc=
-github.com/ClickHouse/clickhouse-go/v2 v2.50.0 h1:cX9TLBOdNVbecglF/c8KkbtZQpov84u+AtpwAA6Gv8g=
-github.com/ClickHouse/clickhouse-go/v2 v2.50.0/go.mod h1:2mzC9OqL8g+vZgmdOoRQ9iEp2BxIsV5hKA1m7DBVU+M=
+github.com/ClickHouse/clickhouse-go/v2 v2.51.0 h1:aoTTC+qxKf1O2XojwC5scRtPjJ9JdRJdkLH9aEWWwWc=
+github.com/ClickHouse/clickhouse-go/v2 v2.51.0/go.mod h1:GJrhJWhGJY0SoYTmH2eaDf0KuGsYDTo0ya66osesHmk=
 github.com/alecthomas/kingpin/v2 v2.4.0 h1:f48lwail6p8zpO1bC4TxtqACaGqHYA22qkHjHpqDjYY=
 github.com/alecthomas/kingpin/v2 v2.4.0/go.mod h1:0gyi0zQnjuFk8xrkNKamJoyUo382HRL7ATRpFZCw6tE=
 github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b h1:mimo19zliBX/vSQ6PWWSL9lK8qwHozUj03+zLoEB8O0=

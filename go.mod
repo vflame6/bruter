@@ -3,7 +3,7 @@ module github.com/vflame6/bruter
 go 1.26.0
 
 require (
-	github.com/ClickHouse/clickhouse-go/v2 v2.50.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.51.0
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/go-ldap/ldap/v3 v3.4.15
 	github.com/go-sql-driver/mysql v1.10.1
