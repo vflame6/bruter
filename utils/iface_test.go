@@ -63,3 +63,38 @@ func TestGetInterfaceIPv4_EmptyName(t *testing.T) {
 		t.Error("GetInterfaceIPv4(\"\") expected error, got nil")
 	}
 }
+
+func TestGetInterfaceIPv4_LoopbackDetectedByFlagNotName(t *testing.T) {
+	// The loopback interface is "lo" on Linux, "lo0" on macOS and
+	// "Loopback Pseudo-Interface 1" on Windows, and it can be renamed on any
+	// of them. Deciding from the name meant 127.0.0.1 was discarded as "a
+	// loopback address on a non-loopback interface" everywhere else.
+	name := loopbackIface(t)
+
+	ip, err := GetInterfaceIPv4(name)
+	if err != nil {
+		t.Fatalf("GetInterfaceIPv4(%q): %v", name, err)
+	}
+	if !ip.IsLoopback() {
+		t.Errorf("GetInterfaceIPv4(%q) = %v, want a loopback address", name, ip)
+	}
+
+	// The converse still has to hold: a non-loopback interface must not hand
+	// back a loopback address.
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		t.Skipf("cannot enumerate interfaces: %v", err)
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		got, err := GetInterfaceIPv4(iface.Name)
+		if err != nil {
+			continue // no IPv4 on this one, which is fine
+		}
+		if got.IsLoopback() {
+			t.Errorf("GetInterfaceIPv4(%q) returned loopback %v from a non-loopback interface", iface.Name, got)
+		}
+	}
+}
