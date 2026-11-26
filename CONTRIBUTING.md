@@ -258,8 +258,12 @@ not named that way means giving the URL once:
 
 ```shell
 brew tap vflame6/bruter https://github.com/vflame6/bruter
+brew trust vflame6/bruter
 brew install bruter
 ```
+
+`brew trust` is unavoidable: Homebrew will not load a formula or a cask from a
+non-official tap without it, whatever the tap is named.
 
 Moving to a one-command `brew install vflame6/tap/bruter` would mean creating
 a `vflame6/homebrew-tap` repository and a PAT with `contents: write` on it,

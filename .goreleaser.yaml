@@ -128,14 +128,11 @@ homebrew_casks:
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
-    hooks:
-      post:
-        # Release binaries are not notarized, so Gatekeeper refuses to run them
-        # until the quarantine attribute is stripped.
-        install_steps: |
-          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/bruter"]
-          end
+    # No quarantine-stripping hook. Homebrew does flag the download, but macOS
+    # only refuses quarantined code when it is launched through LaunchServices,
+    # and a CLI binary run from a shell starts fine. Verified by installing the
+    # cask and running the result. The `system_command` helper is also not
+    # available inside postflight_steps, so the hook could not load at all.
 
 checksum:
   name_template: checksums.txt

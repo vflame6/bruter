@@ -35,11 +35,6 @@ cask "bruter" do
   bash_completion "completions/bruter.bash"
   zsh_completion "completions/bruter.zsh"
 
-  postflight_steps do
-    if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
-      system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/bruter"]
-    end
-  end
 
   zap :not_required
 end

@@ -114,15 +114,20 @@ sudo rpm -i "https://github.com/vflame6/bruter/releases/download/v${VER}/bruter_
 
 ```shell
 brew tap vflame6/bruter https://github.com/vflame6/bruter
+brew trust vflame6/bruter
 brew install bruter
 ```
 
-The tap is this repository, so the URL is given once; after that `brew upgrade`
-picks up new releases like any other package. Nothing is submitted to or
-approved by Homebrew.
+After that, `brew upgrade` picks up new releases like any other package.
 
-On Linux use the native packages above instead — Homebrew installs casks on
-macOS only.
+Three commands rather than one, for two reasons. The tap is this repository
+rather than a `homebrew-tap` one, so `brew tap` needs the URL spelled out
+once. And current Homebrew refuses to load anything from a tap it does not
+know, which is what `brew trust` answers — that applies to every third-party
+tap, formula or cask alike, so it is not something bruter can avoid.
+
+Nothing is submitted to or approved by Homebrew. On Linux use the native
+packages above instead; Homebrew installs casks on macOS only.
 
 ### Arch and Alpine
 
