@@ -20,7 +20,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nakagami/firebirdsql v0.9.23
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.6
-	github.com/rabbitmq/amqp091-go v1.16.0
+	github.com/rabbitmq/amqp091-go v1.17.0
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/xmppo/go-xmpp v0.4.1
