@@ -36,5 +36,13 @@ cask "bruter" do
   zsh_completion "completions/bruter.zsh"
 
 
+  postflight_steps do
+    on_macos do
+      run "/usr/bin/xattr",
+          args: ["-dr", "com.apple.quarantine", "{{staged_path}}/bruter"],
+          must_succeed: false
+    end
+  end
+
   zap :not_required
 end
