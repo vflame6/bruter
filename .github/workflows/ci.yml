@@ -103,6 +103,12 @@ jobs:
           go-version: stable
           cache: true
 
+      # main_test.go shells out to `go run .`, which needs an uninstrumented
+      # build of the module. Warming that cache first keeps the test well
+      # inside its timeout on a cold runner.
+      - name: Warm the build cache
+        run: go build ./...
+
       - name: Test with -race
         run: go test -race ./...
 

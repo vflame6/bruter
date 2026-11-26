@@ -72,7 +72,10 @@ func TestParseFileGolden(t *testing.T) {
 				t.Fatalf("read golden (run `go test ./parser -update` to create it): %v", err)
 			}
 
-			if string(got) != string(want) {
+			// .gitattributes pins these to LF, but a checkout configured with
+			// core.autocrlf would still hand us CRLF, and that is not a parser
+			// regression.
+			if normalizeEOL(string(got)) != normalizeEOL(string(want)) {
 				t.Errorf("parsed targets differ from %s\n%s", goldenPath, lineDiff(string(want), string(got)))
 			}
 		})
@@ -104,11 +107,16 @@ func TestGoldenFilesCoverEveryFormat(t *testing.T) {
 	}
 }
 
+// normalizeEOL strips carriage returns so a CRLF checkout compares equal.
+func normalizeEOL(s string) string {
+	return strings.ReplaceAll(s, "\r\n", "\n")
+}
+
 // lineDiff renders the first differing line plus both full bodies, which is
 // enough to tell an intentional parser change from a regression.
 func lineDiff(want, got string) string {
-	wantLines := strings.Split(want, "\n")
-	gotLines := strings.Split(got, "\n")
+	wantLines := strings.Split(normalizeEOL(want), "\n")
+	gotLines := strings.Split(normalizeEOL(got), "\n")
 
 	var b strings.Builder
 	for i := 0; i < len(wantLines) || i < len(gotLines); i++ {

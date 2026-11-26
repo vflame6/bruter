@@ -9,11 +9,12 @@ linters:
     - ineffassign
     - unused
     - gocritic
+  exclusions:
+    rules:
+      # Tests assert on results, not on the error of every cleanup call.
+      - path: '_test\.go'
+        linters:
+          - errcheck
 formatters:
   enable:
     - gofmt
-issues:
-  exclude-rules:
-    - path: ".*_test\\.go"
-      linters:
-        - errcheck

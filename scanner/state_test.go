@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -126,6 +127,13 @@ func hex16(v uint64) string {
 }
 
 func TestStateStoreFileIsNotWorldReadable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// Windows does not implement POSIX permission bits; Mode().Perm()
+		// reports 0666 for any writable file. The 0600 the store asks for
+		// still matters everywhere else.
+		t.Skip("permission bits are not meaningful on Windows")
+	}
+
 	path := tempCheckpoint(t)
 	store, err := OpenStateStore(path)
 	if err != nil {

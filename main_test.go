@@ -15,7 +15,10 @@ import (
 )
 
 func TestListServicesCLIPrintsSortedRegistry(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	// Generous on purpose: this shells out to `go run .`, which on a cold CI
+	// runner has to compile the whole module, and 20s was not enough once the
+	// Kerberos and MCP dependencies landed.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "go", "run", ".", "--list-services")

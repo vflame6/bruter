@@ -2,20 +2,41 @@ package utils
 
 import (
 	"net"
-	"runtime"
 	"testing"
 )
 
-// loopbackIface returns the loopback interface name for the current OS.
-func loopbackIface() string {
-	if runtime.GOOS == "darwin" {
-		return "lo0"
+// loopbackIface finds the loopback interface on this machine. The name is
+// discovered rather than hard-coded, because it is "lo" on Linux, "lo0" on
+// macOS and something like "Loopback Pseudo-Interface 1" on Windows.
+func loopbackIface(t *testing.T) string {
+	t.Helper()
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		t.Skipf("cannot enumerate interfaces: %v", err)
 	}
-	return "lo"
+
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback == 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.To4() != nil {
+				return iface.Name
+			}
+		}
+	}
+
+	t.Skip("no loopback interface with an IPv4 address")
+	return ""
 }
 
 func TestGetInterfaceIPv4_Loopback(t *testing.T) {
-	name := loopbackIface()
+	name := loopbackIface(t)
 	ip, err := GetInterfaceIPv4(name)
 	if err != nil {
 		t.Fatalf("GetInterfaceIPv4(%q) unexpected error: %v", name, err)
