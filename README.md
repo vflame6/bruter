@@ -2,11 +2,10 @@
   bruter
 </h1>
 
-<h4 align="center">The widest-coverage network brute-forcer — 56 protocols in one static Go binary, driven straight from your nmap, Nessus and Nexpose scans.</h4>
+<h4 align="center">The widest-coverage network brute-forcer, driven straight from your nmap, Nessus and Nexpose scans.</h4>
 
 <p align="center">
 <a href="https://github.com/vflame6/bruter/actions/workflows/ci.yml"><img src="https://github.com/vflame6/bruter/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-<a href="https://goreportcard.com/report/github.com/vflame6/bruter" target="_blank"><img src="https://goreportcard.com/badge/github.com/vflame6/bruter"></a>
 <a href="https://codecov.io/gh/vflame6/bruter"><img src="https://codecov.io/gh/vflame6/bruter/branch/main/graph/badge.svg"></a>
 <a href="https://github.com/vflame6/bruter/releases"><img src="https://img.shields.io/github/release/vflame6/bruter"></a>
 <a href="https://github.com/vflame6/bruter/blob/main/LICENSE"><img src="https://img.shields.io/github/license/vflame6/bruter"></a>
@@ -31,29 +30,22 @@ data stores and C2 panels as readily as it does SSH.
 
 ![bruter](static/bruter_demo.png)
 
-- **Lockout-safe spraying** — `--spray` tries one password across every account
-  and every host, sleeps, then moves on; `--max-attempts-per-user` aborts
-  before the domain locks out
 - **56 protocols** — from SSH and SMB through to ClickHouse, Cassandra, Neo4j,
   etcd, InfluxDB, CouchDB, Elasticsearch, Vault, AMQP, SMPP and Cobalt Strike
   team servers
-- **Kerberos** — AS-REQ pre-authentication spraying, plus user enumeration that
-  submits no password at all
 - **Scan file auto-detection** — feed nmap (GNMAP/XML), Nessus or Nexpose output
   straight in and `bruter all` maps every discovered service to a module
 - **Finds misconfigurations, not just passwords** — `--vulns` checks null
   sessions, anonymous binds, no-auth data stores and vendor defaults without
   firing a single wordlist attempt
-- **Resumable** — `--resume state.ck` and a run that dies at hour six picks up
-  where it stopped
 - **Built-in default wordlists** — usernames and passwords with `--defaults`
 - **Parallel execution** — configurable per-host threading and concurrent hosts
 - **Smart probing** — auto-detects TLS and tests default credentials before brute
 - **SOCKS5 proxy support** — with optional proxy authentication
 - **Interface binding** — bind to a specific network interface with `-I`
 - **JSONL output** — `-j` for piping into your own tooling
-- **Static binary** — `apt install`, `brew install`, or drop the release binary
-  on a jump host
+- **Resumable** — `--resume state.ck` and a run that dies at hour six picks up
+  where it stopped
 
 ## Modules
 
@@ -74,16 +66,6 @@ data stores and C2 panels as readily as it does SSH.
 | **Industrial** | `s7` |
 
 `bruter -L` lists every module with its default port.
-
-### Vulnerability checks
-
-`--vulns` runs authentication-bypass checks and vendor default credentials
-*instead of* a wordlist — useful as a first, quiet pass. It covers SMB null
-sessions, LDAP anonymous binds, unauthenticated Redis/Mongo/etcd/CouchDB/
-Elasticsearch/InfluxDB/Memcached/Neo4j/Cassandra, PostgreSQL trust auth, empty
-`sa`/`root` passwords, FTP anonymous login, Cisco and Telnet passwordless
-logins, SNMP default communities, and `ssh-hole` — the OpenSSH/musl overlong
-password bypass, probed on the `ssh` module.
 
 ## Usage
 
@@ -204,10 +186,6 @@ bruter smb -t dcs.txt -u users.txt -p seasons.txt \
     --spray --delay 35m --jitter 5m --max-attempts-per-user 3
 ```
 
-One password is tried against every account on every host, then the run sleeps.
-`--delay` should outlast the domain's lockout observation window, and
-`--max-attempts-per-user` aborts before any account is locked out.
-
 **Brute-force SSH with a password list:**
 
 ```shell
@@ -230,18 +208,6 @@ bruter mysql -t 10.0.0.5:3306 --defaults
 
 ```shell
 bruter ssh -t 10.0.0.5 -u users.txt --user-as-pass --blank --reversed
-```
-
-**List all supported services:**
-
-```shell
-bruter -L
-```
-
-**Comma-separated targets:**
-
-```shell
-bruter ssh -t 192.168.1.1,192.168.1.2,192.168.1.3 -u root --defaults
 ```
 
 ### Target Format
@@ -282,31 +248,6 @@ bruter mcp --mcp-scope engagement-scope.txt
 dc01.corp.local
 ```
 
-**The scope file is the authorization boundary, and it is enforced structurally
-rather than by asking the model to behave:**
-
-- Without `--mcp-scope`, the tools that put traffic on the wire — `run_module`
-  and `spray` — are never registered. The agent sees only `list_services`,
-  `parse_scan` and `check_scope`, and cannot be talked into using something
-  that does not exist.
-- A call naming any out-of-scope target is refused whole. The in-scope part
-  does not run either.
-- Hostnames must match a scope entry literally. bruter does not resolve them
-  first: a scope decision that changes with whatever DNS answers at the time is
-  not a scope decision.
-
-| Tool | |
-|------|--|
-| `list_services` | Every module and its default port |
-| `parse_scan` | Parse a scan file; every finding flagged `in_scope` |
-| `check_scope` | Which of these targets am I allowed to test |
-| `run_module` | Test credentials against one protocol (scope required) |
-| `spray` | Lockout-safe spraying (scope required, `max_attempts_per_user` required) |
-
-`spray` refuses to run without `max_attempts_per_user`, and that budget belongs
-to the **server**, not the call: an agent cannot top an account's allowance back
-up by calling `spray` again.
-
 An agent skill covering both the CLI and the MCP tools lives in
 [`skills/bruter/`](skills/bruter/SKILL.md):
 
@@ -338,17 +279,6 @@ brew tap vflame6/bruter https://github.com/vflame6/bruter
 brew trust vflame6/bruter
 brew install bruter
 ```
-
-After that, `brew upgrade` picks up new releases like any other package.
-
-Three commands rather than one, for two reasons. The tap is this repository
-rather than a `homebrew-tap` one, so `brew tap` needs the URL spelled out
-once. And current Homebrew refuses to load anything from a tap it does not
-know, which is what `brew trust` answers — that applies to every third-party
-tap, formula or cask alike, so it is not something bruter can avoid.
-
-Nothing is submitted to or approved by Homebrew. On Linux use the native
-packages above instead; Homebrew installs casks on macOS only.
 
 ### Arch and Alpine
 
