@@ -27,55 +27,47 @@ data stores and C2 panels as readily as it does SSH.
 > you have explicit written permission to test. Using it against anything else
 > is likely illegal.
 
-## Why bruter
+## Features
 
-- **Lockout-safe spraying.** `--spray` tries one password across every account
-  *and every host*, sleeps, then moves on. With
-  `--max-attempts-per-user` it aborts before the domain locks out.
-- **One command for a whole scan.** `bruter all -n scan.xml --defaults` maps
-  every discovered service to a module and runs them concurrently.
-- **56 protocols**, from SSH and SMB through to ClickHouse, Cassandra, Neo4j,
+![bruter](static/bruter_demo.png)
+
+- **Lockout-safe spraying** — `--spray` tries one password across every account
+  and every host, sleeps, then moves on; `--max-attempts-per-user` aborts
+  before the domain locks out
+- **56 protocols** — from SSH and SMB through to ClickHouse, Cassandra, Neo4j,
   etcd, InfluxDB, CouchDB, Elasticsearch, Vault, AMQP, SMPP and Cobalt Strike
-  team servers.
-- **Kerberos.** AS-REQ pre-authentication spraying and user enumeration, the
-  first and last things an AD tester runs.
-- **Finds misconfigurations, not just passwords.** `--vulns` checks null
+  team servers
+- **Kerberos** — AS-REQ pre-authentication spraying, plus user enumeration that
+  submits no password at all
+- **Scan file auto-detection** — feed nmap (GNMAP/XML), Nessus or Nexpose output
+  straight in and `bruter all` maps every discovered service to a module
+- **Finds misconfigurations, not just passwords** — `--vulns` checks null
   sessions, anonymous binds, no-auth data stores and vendor defaults without
-  firing a single wordlist attempt.
-- **Resumable.** `--resume state.ck` and a run that dies at hour six picks up
-  where it stopped.
-- **Static binary.** `apt install`, `brew install`, or drop the release binary
-  on a jump host. Nothing to install alongside it.
+  firing a single wordlist attempt
+- **Resumable** — `--resume state.ck` and a run that dies at hour six picks up
+  where it stopped
+- **Built-in default wordlists** — usernames and passwords with `--defaults`
+- **Parallel execution** — configurable per-host threading and concurrent hosts
+- **Smart probing** — auto-detects TLS and tests default credentials before brute
+- **SOCKS5 proxy support** — with optional proxy authentication
+- **Interface binding** — bind to a specific network interface with `-I`
+- **JSONL output** — `-j` for piping into your own tooling
+- **Static binary** — `apt install`, `brew install`, or drop the release binary
+  on a jump host
 
 ## Modules
 
-Modern data stores, message brokers and C2 panels:
-
-| Module | Service | Default port |
-|--------|---------|--------------|
-| `clickhouse` | ClickHouse native protocol | 9000 |
-| `cassandra` | Apache Cassandra CQL | 9042 |
-| `neo4j` | Neo4j Bolt protocol | 7687 |
-| `etcd` | etcd v3 | 2379 |
-| `influxdb` | InfluxDB | 8086 |
-| `couchdb` | Apache CouchDB | 5984 |
-| `elasticsearch` | Elasticsearch | 9200 |
-| `vault` | HashiCorp Vault userpass | 8200 |
-| `amqp` | AMQP 0-9-1 / RabbitMQ | 5672 |
-| `smpp` | SMPP (SMS gateways) | 2775 |
-| `cobaltstrike` | Cobalt Strike team server | 50050 |
-
-Everything else:
-
 | Category | Modules |
 |----------|---------|
-| **Remote Access** | `ssh`, `sshkey`, `rdp`, `winrm`, `telnet`, `rexec`, `rlogin`, `rsh`, `vnc`, `radmin`, `vmauthd` |
-| **Databases** | `mysql`, `mssql`, `postgres`, `oracle`, `mongo`, `redis`, `firebird`, `memcached` |
+| **Databases & data stores** | `clickhouse`, `cassandra`, `neo4j`, `etcd`, `influxdb`, `couchdb`, `elasticsearch`, `mongo`, `redis`, `memcached`, `mysql`, `mssql`, `postgres`, `oracle`, `firebird` |
+| **Secrets & C2** | `vault`, `cobaltstrike` |
+| **Message queues** | `amqp`, `smpp` |
+| **Windows & directory** | `kerberos`, `kerberos-enum`, `ldap`, `smb`, `winrm`, `rdp` |
+| **Remote access** | `ssh`, `sshkey`, `telnet`, `vnc`, `radmin`, `vmauthd`, `rexec`, `rlogin`, `rsh` |
 | **Mail** | `smtp`, `smtp-enum`, `imap`, `pop3`, `nntp` |
 | **Web / HTTP** | `http-basic`, `http-form`, `http-proxy` |
-| **Active Directory** | `kerberos`, `kerberos-enum`, `ldap` |
-| **File Sharing** | `ftp`, `smb`, `svn` |
-| **Messaging** | `irc`, `xmpp` |
+| **File sharing** | `ftp`, `svn` |
+| **Chat** | `irc`, `xmpp` |
 | **Network** | `socks5`, `snmp`, `rtsp`, `rpcap` |
 | **VoIP** | `asterisk`, `teamspeak`, `sip` |
 | **Cisco** | `cisco`, `cisco-enable` |
@@ -92,84 +84,6 @@ Elasticsearch/InfluxDB/Memcached/Neo4j/Cassandra, PostgreSQL trust auth, empty
 `sa`/`root` passwords, FTP anonymous login, Cisco and Telnet passwordless
 logins, SNMP default communities, and `ssh-hole` — the OpenSSH/musl overlong
 password bypass, probed on the `ssh` module.
-
-## Installation
-
-### Debian, Ubuntu, Kali
-
-```shell
-VER=$(curl -fsSL https://api.github.com/repos/vflame6/bruter/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
-curl -fsSLO "https://github.com/vflame6/bruter/releases/download/v${VER}/bruter_${VER}_linux_amd64.deb"
-sudo dpkg -i "bruter_${VER}_linux_amd64.deb"
-```
-
-### Fedora, RHEL, openSUSE
-
-```shell
-VER=$(curl -fsSL https://api.github.com/repos/vflame6/bruter/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
-sudo rpm -i "https://github.com/vflame6/bruter/releases/download/v${VER}/bruter_${VER}_linux_amd64.rpm"
-```
-
-### macOS
-
-```shell
-brew tap vflame6/bruter https://github.com/vflame6/bruter
-brew trust vflame6/bruter
-brew install bruter
-```
-
-After that, `brew upgrade` picks up new releases like any other package.
-
-Three commands rather than one, for two reasons. The tap is this repository
-rather than a `homebrew-tap` one, so `brew tap` needs the URL spelled out
-once. And current Homebrew refuses to load anything from a tap it does not
-know, which is what `brew trust` answers — that applies to every third-party
-tap, formula or cask alike, so it is not something bruter can avoid.
-
-Nothing is submitted to or approved by Homebrew. On Linux use the native
-packages above instead; Homebrew installs casks on macOS only.
-
-### Arch and Alpine
-
-`.pkg.tar.zst` and `.apk` packages are attached to every
-[release](https://github.com/vflame6/bruter/releases), alongside static
-binaries for Linux and Windows (amd64, arm64, 386) and macOS (amd64, arm64).
-
-### From source
-
-Requires **Go 1.26+** (the floor comes from `golang.org/x/crypto` and gRPC).
-
-```shell
-go install -v github.com/vflame6/bruter@latest
-```
-
-```shell
-git clone https://github.com/vflame6/bruter.git
-cd bruter
-go build -o bruter .
-```
-
-### Docker
-
-```shell
-docker build -t bruter .
-docker run --rm bruter ssh -t 10.0.0.1 -u admin -p passwords.txt
-```
-
-Packages install shell completions for bash and zsh automatically. For a
-tarball install, the scripts are in `completions/`.
-
-## Features
-
-![bruter](static/bruter_demo.png)
-
-- **Scan file auto-detection** — feed nmap (GNMAP/XML), Nessus, or Nexpose output directly
-- **Built-in default wordlists** — usernames and passwords with `--defaults`
-- **Parallel execution** — configurable per-host threading and concurrent hosts
-- **Smart probing** — auto-detects TLS and tests default credentials before brute
-- **SOCKS5 proxy support** — with optional proxy authentication
-- **Interface binding** — bind to a specific network interface with `-I`
-- **JSONL output** — `-j` for piping into your own tooling
 
 ## Usage
 
@@ -283,6 +197,17 @@ bruter all -n scan.gnmap --defaults -s ssh,ftp,rdp
 bruter all -n scan.xml --vulns
 ```
 
+**Lockout-safe password spray across domain controllers:**
+
+```shell
+bruter smb -t dcs.txt -u users.txt -p seasons.txt \
+    --spray --delay 35m --jitter 5m --max-attempts-per-user 3
+```
+
+One password is tried against every account on every host, then the run sleeps.
+`--delay` should outlast the domain's lockout observation window, and
+`--max-attempts-per-user` aborts before any account is locked out.
+
 **Brute-force SSH with a password list:**
 
 ```shell
@@ -328,104 +253,6 @@ Targets use `host` or `host:port` format. If port is omitted, the module default
 192.168.0.12:2222
 10.0.0.1,10.0.0.2,10.0.0.3
 ```
-
-## Password spraying
-
-`--delay` on its own waits between every attempt, which is slow and still walks
-one account's passwords back to back. `--spray` changes the schedule instead:
-one password is tried against **every account on every host**, then the run
-sleeps, then the next password starts. Each account sees one attempt per host
-per round, so if the pause outlasts the domain's lockout observation window the
-counters reset between rounds.
-
-```shell
-bruter smb -t dcs.txt -u users.txt -p seasons.txt \
-    --spray --delay 35m --jitter 5m --max-attempts-per-user 3
-```
-
-```
-[*] spray round 1/4: password="Autumn2026" across 412 credential(s) and 3 host(s)
-[+] 10.10.20.14:445 CORP.LOCAL\j.doe:Autumn2026
-[*] spray round complete, sleeping 37m12s
-[*] spray round 2/4: password="Winter2026" across 412 credential(s) and 3 host(s)
-```
-
-| Flag | Effect |
-|------|--------|
-| `--spray` | One credential group per round, coordinated across all hosts |
-| `-d`, `--delay` | Pause between rounds. Required with `--spray` |
-| `--jitter` | Random variation either way on that pause. Must not exceed `--delay` |
-| `--max-attempts-per-user` | Global cap per account; the run aborts once every account reaches it |
-| `-O`, `--order` | `password` (default, lockout-safe) or `user` (all passwords for one account) |
-
-Notes worth knowing before you point this at a live directory:
-
-- **Every extra host multiplies what a round costs.** The lockout counter lives
-  on the directory, not on the host you are talking to, so one password against
-  three domain controllers is three attempts against each account. The cap
-  counts across hosts for exactly this reason, and bruter says how many full
-  rounds your cap actually covers:
-
-  ```
-  [*] spraying 3 hosts, so each round costs 3 attempt(s) per account; the limit of 9 covers 3 full round(s)
-  ```
-
-  If you only need to know whether a password is valid, spray one host.
-- **Username variants are folded to one account.** `admin`, `Admin` and
-  `CORP\admin` are one directory account with one counter, so with the same
-  password they are tried once, not three times. Case-sensitive services are
-  the trade-off: use a plain run, not `--spray`, if you genuinely need to tell
-  `Admin` from `admin`.
-- The reachability probe authenticates as a random non-existent principal, so
-  starting a spray never spends a real account's budget. A plain (non-spray)
-  run probes with the module's default credentials instead, which does — except
-  for `kerberos`, where that probe is suppressed.
-- `-O user` exists for completeness. It empties one account's budget at a time
-  and is not safe against a live directory.
-- `--spray` cannot be combined with `--vulns`: that pass authenticates outside
-  the round schedule, which would defeat the per-account limits.
-
-## Resuming a long run
-
-`--resume FILE` records every credential that was actually evaluated. Point the
-next run at the same file and it skips them.
-
-```shell
-bruter ssh -t targets.txt -u users.txt -p rockyou.txt --resume engagement.ck
-# ... killed at hour six ...
-bruter ssh -t targets.txt -u users.txt -p rockyou.txt --resume engagement.ck
-# [*] resuming from engagement.ck: 1843204 attempt(s) already recorded, they will be skipped
-```
-
-Attempts that failed to connect are deliberately **not** recorded — the
-credential was never tested, so a resumed run tries it again. Adding new
-passwords to the wordlist works as you would expect: only the new pairs run.
-
-The file holds hashes of `(host, service, user, password)` rather than the
-values, so a checkpoint left on disk is not a list of every password you tried.
-
-## Active Directory
-
-```shell
-# Which accounts exist? Submits no password, so it costs no lockout budget.
-bruter kerberos-enum -t dc01.corp.local --domain corp.local -u users.txt
-
-# Password validation over AS-REQ pre-authentication.
-bruter kerberos -t dc01.corp.local --domain corp.local \
-    -u users.txt -p seasons.txt --spray --delay 35m --max-attempts-per-user 3
-```
-
-`kerberos-enum` tells apart accounts that exist, accounts that are
-disabled or locked, and accounts with pre-authentication disabled — the last of
-which are AS-REP roastable and are reported as such.
-
-Enumeration modules (`kerberos-enum`, `smtp-enum`) ignore the password field,
-so `-p` is optional: pass one anyway and each account is still probed once
-rather than once per password.
-
-Both modules need a realm, from `--domain` or usernames written as
-`user@REALM`. `--domain` accepts the domain in any case; realms are upper-cased
-before they go on the wire.
 
 ## MCP server
 
@@ -486,6 +313,72 @@ An agent skill covering both the CLI and the MCP tools lives in
 ```shell
 npx skills add github.com/vflame6/bruter
 ```
+
+## Installation
+
+### Debian, Ubuntu, Kali
+
+```shell
+VER=$(curl -fsSL https://api.github.com/repos/vflame6/bruter/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+curl -fsSLO "https://github.com/vflame6/bruter/releases/download/v${VER}/bruter_${VER}_linux_amd64.deb"
+sudo dpkg -i "bruter_${VER}_linux_amd64.deb"
+```
+
+### Fedora, RHEL, openSUSE
+
+```shell
+VER=$(curl -fsSL https://api.github.com/repos/vflame6/bruter/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+sudo rpm -i "https://github.com/vflame6/bruter/releases/download/v${VER}/bruter_${VER}_linux_amd64.rpm"
+```
+
+### macOS
+
+```shell
+brew tap vflame6/bruter https://github.com/vflame6/bruter
+brew trust vflame6/bruter
+brew install bruter
+```
+
+After that, `brew upgrade` picks up new releases like any other package.
+
+Three commands rather than one, for two reasons. The tap is this repository
+rather than a `homebrew-tap` one, so `brew tap` needs the URL spelled out
+once. And current Homebrew refuses to load anything from a tap it does not
+know, which is what `brew trust` answers — that applies to every third-party
+tap, formula or cask alike, so it is not something bruter can avoid.
+
+Nothing is submitted to or approved by Homebrew. On Linux use the native
+packages above instead; Homebrew installs casks on macOS only.
+
+### Arch and Alpine
+
+`.pkg.tar.zst` and `.apk` packages are attached to every
+[release](https://github.com/vflame6/bruter/releases), alongside static
+binaries for Linux and Windows (amd64, arm64, 386) and macOS (amd64, arm64).
+
+### From source
+
+Requires **Go 1.26+** (the floor comes from `golang.org/x/crypto` and gRPC).
+
+```shell
+go install -v github.com/vflame6/bruter@latest
+```
+
+```shell
+git clone https://github.com/vflame6/bruter.git
+cd bruter
+go build -o bruter .
+```
+
+### Docker
+
+```shell
+docker build -t bruter .
+docker run --rm bruter ssh -t 10.0.0.1 -u admin -p passwords.txt
+```
+
+Packages install shell completions for bash and zsh automatically. For a
+tarball install, the scripts are in `completions/`.
 
 ## Contributing
 
