@@ -6,7 +6,6 @@
 package wordlists
 
 import (
-	"crypto/x509"
 	_ "embed"
 	"encoding/pem"
 	"strings"
@@ -34,8 +33,6 @@ var DefaultPasswords = parseLines(passwordsRaw)
 // Source: https://github.com/rapid7/ssh-badkeys
 var DefaultSSHKeys = parsePEMKeys(sshBadKeysRaw)
 
-
-
 func parsePEMKeys(raw string) []string {
 	data := []byte(raw)
 	var keys []string
@@ -44,18 +41,11 @@ func parsePEMKeys(raw string) []string {
 		if block == nil {
 			break
 		}
-		// Validate it's a usable private key
-		pemBytes := pem.EncodeToMemory(block)
-		if _, err := x509.ParsePKCS1PrivateKey(block.Bytes); err == nil {
-			keys = append(keys, string(pemBytes))
-		} else if _, err := x509.ParsePKCS8PrivateKey(block.Bytes); err == nil {
-			keys = append(keys, string(pemBytes))
-		} else if _, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
-			keys = append(keys, string(pemBytes))
-		} else {
-			// Include even if we can't parse (DSA keys, etc.) — ssh library handles them
-			keys = append(keys, string(pemBytes))
-		}
+		// Every well-formed PEM block is kept as-is. RSA, PKCS#8 and EC keys
+		// plus the formats crypto/x509 cannot parse (DSA, OpenSSH) are all
+		// handled downstream by golang.org/x/crypto/ssh, so there is nothing
+		// worth filtering on here.
+		keys = append(keys, string(pem.EncodeToMemory(block)))
 		data = rest
 	}
 	return keys

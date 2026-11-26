@@ -1,0 +1,82 @@
+[
+  {
+    "Host": "10.10.20.1",
+    "Port": 22,
+    "Service": "ssh"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 88,
+    "Service": "kerberos"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 445,
+    "Service": "smb"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 3389,
+    "Service": "rdp"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 5985,
+    "Service": "winrm"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 1433,
+    "Service": "mssql"
+  },
+  {
+    "Host": "10.10.20.31",
+    "Port": 3306,
+    "Service": "mysql"
+  },
+  {
+    "Host": "10.10.20.31",
+    "Port": 5432,
+    "Service": "postgres"
+  },
+  {
+    "Host": "10.10.20.31",
+    "Port": 6379,
+    "Service": "redis"
+  },
+  {
+    "Host": "10.10.20.31",
+    "Port": 9000,
+    "Service": "clickhouse"
+  },
+  {
+    "Host": "10.10.20.31",
+    "Port": 9042,
+    "Service": "cassandra"
+  },
+  {
+    "Host": "10.10.20.47",
+    "Port": 161,
+    "Service": "snmp"
+  },
+  {
+    "Host": "10.10.20.47",
+    "Port": 2002,
+    "Service": "rpcap"
+  },
+  {
+    "Host": "10.10.20.47",
+    "Port": 102,
+    "Service": "s7"
+  },
+  {
+    "Host": "10.10.20.58",
+    "Port": 993,
+    "Service": "imap"
+  },
+  {
+    "Host": "10.10.20.58",
+    "Port": 587,
+    "Service": "smtp"
+  }
+]

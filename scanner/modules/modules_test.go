@@ -12,7 +12,7 @@ func TestModuleRegistryContainsExpectedServices(t *testing.T) {
 		"amqp", "asterisk", "cassandra", "cisco", "cisco-enable", "clickhouse",
 		"cobaltstrike", "couchdb", "elasticsearch", "etcd", "firebird", "ftp",
 		"http-basic", "http-form", "http-proxy", "imap", "influxdb", "irc",
-		"ldap", "memcached", "mongo", "mssql", "mysql", "neo4j", "nntp",
+		"kerberos", "kerberos-enum", "ldap", "memcached", "mongo", "mssql", "mysql", "neo4j", "nntp",
 		"oracle", "pop3", "postgres", "radmin", "rdp", "redis", "rexec",
 		"rlogin", "rpcap", "rsh", "rtsp", "s7", "sip", "smb", "smpp",
 		"smtp", "smtp-enum", "snmp", "socks5", "ssh", "sshkey", "svn",

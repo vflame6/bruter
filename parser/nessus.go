@@ -91,6 +91,9 @@ func mapNessusService(svc string) string {
 		return "http"
 	case "cifs":
 		return "microsoft-ds"
+	case "msrdp":
+		// Nessus labels 3389 "msrdp"; nmap calls it "ms-wbt-server".
+		return "ms-wbt-server"
 	case "ms-sql-s":
 		return "ms-sql-s"
 	case "ntp":

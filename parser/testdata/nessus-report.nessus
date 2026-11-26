@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<NessusClientData_v2>
+  <Policy>
+    <policyName>Full Internal Scan</policyName>
+  </Policy>
+  <Report name="corp-internal-2026-11" xmlns:cm="http://www.nessus.org/cm">
+    <ReportHost name="10.10.20.14">
+      <HostProperties>
+        <tag name="host-ip">10.10.20.14</tag>
+        <tag name="operating-system">Microsoft Windows Server 2022 Standard</tag>
+      </HostProperties>
+      <ReportItem port="0" svc_name="general" protocol="tcp" severity="0" pluginID="19506" pluginName="Nessus Scan Information"/>
+      <ReportItem port="445" svc_name="cifs" protocol="tcp" severity="0" pluginID="10394" pluginName="Microsoft Windows SMB Log In Possible"/>
+      <ReportItem port="445" svc_name="cifs" protocol="tcp" severity="2" pluginID="57608" pluginName="SMB Signing not required"/>
+      <ReportItem port="3389" svc_name="msrdp" protocol="tcp" severity="1" pluginID="30218" pluginName="Terminal Services Encryption Level"/>
+      <ReportItem port="1433" svc_name="ms-sql-s" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner"/>
+      <ReportItem port="80" svc_name="www" protocol="tcp" severity="0" pluginID="10107" pluginName="HTTP Server Type and Version"/>
+    </ReportHost>
+    <ReportHost name="10.10.20.31">
+      <HostProperties>
+        <tag name="host-ip">10.10.20.31</tag>
+      </HostProperties>
+      <ReportItem port="22" svc_name="ssh" protocol="tcp" severity="0" pluginID="10267" pluginName="SSH Server Type and Version Information"/>
+      <ReportItem port="3306" svc_name="mysql" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner"/>
+      <ReportItem port="3050" svc_name="firebird" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner"/>
+      <ReportItem port="27017" svc_name="mongodb" protocol="tcp" severity="3" pluginID="81777" pluginName="MongoDB Unauthenticated Access"/>
+      <ReportItem port="70000" svc_name="ssh" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner"/>
+      <ReportItem port="" svc_name="ssh" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner"/>
+    </ReportHost>
+    <ReportHost name="esxi01.corp.local">
+      <HostProperties>
+        <tag name="host-fqdn">esxi01.corp.local</tag>
+      </HostProperties>
+      <ReportItem port="902" svc_name="vmauthd" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner"/>
+      <ReportItem port="4899" svc_name="radmin" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner"/>
+      <ReportItem port="8888" svc_name="unknown" protocol="tcp" severity="0" pluginID="11219" pluginName="Nessus SYN scanner"/>
+    </ReportHost>
+  </Report>
+</NessusClientData_v2>

@@ -1,0 +1,47 @@
+[
+  {
+    "Host": "10.10.20.14",
+    "Port": 445,
+    "Service": "smb"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 3389,
+    "Service": "rdp"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 5985,
+    "Service": "winrm"
+  },
+  {
+    "Host": "10.10.20.31",
+    "Port": 2379,
+    "Service": "etcd"
+  },
+  {
+    "Host": "10.10.20.31",
+    "Port": 8086,
+    "Service": "influxdb"
+  },
+  {
+    "Host": "10.10.20.31",
+    "Port": 5984,
+    "Service": "couchdb"
+  },
+  {
+    "Host": "10.10.20.31",
+    "Port": 9200,
+    "Service": "elasticsearch"
+  },
+  {
+    "Host": "10.10.20.47",
+    "Port": 161,
+    "Service": "snmp"
+  },
+  {
+    "Host": "10.10.20.47",
+    "Port": 102,
+    "Service": "s7"
+  }
+]

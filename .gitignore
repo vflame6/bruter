@@ -32,11 +32,14 @@ go.work.sum
 .vscode/
 
 tmp/
+
+# goreleaser output
+dist/
+completions/
 .DS_Store
 docs/
 TESTING.md
 ARCHITECTURE.md
 review/
-.golangci.yml
 .claude/
 .superpowers/

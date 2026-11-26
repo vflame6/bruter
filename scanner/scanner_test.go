@@ -226,7 +226,7 @@ func TestSendCredentials_AllSent(t *testing.T) {
 	done := make(chan struct{})
 
 	ctx := context.Background()
-	SendCredentials(ctx, creds, users, passwords, nil, done)
+	SendCredentials(ctx, creds, users, passwords, nil, OrderPassword, done)
 
 	var count int
 	for range creds {
@@ -254,7 +254,7 @@ func TestSendCredentials_DoneChannelStopsEarly(t *testing.T) {
 	}()
 
 	ctx := context.Background()
-	SendCredentials(ctx, creds, users, passwords, nil, done)
+	SendCredentials(ctx, creds, users, passwords, nil, OrderPassword, done)
 
 	// Channel should be closed now
 	_, ok := <-creds
@@ -280,7 +280,7 @@ func TestSendCredentials_ContextCancellation(t *testing.T) {
 		cancel()
 	}()
 
-	SendCredentials(ctx, creds, users, passwords, nil, done)
+	SendCredentials(ctx, creds, users, passwords, nil, OrderPassword, done)
 
 	_, ok := <-creds
 	if ok {

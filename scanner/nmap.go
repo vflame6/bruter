@@ -214,6 +214,7 @@ func (s *Scanner) processHost(ctx context.Context, services []hostService, defau
 			svcOpts := *s.Opts
 			svcOpts.Command = command
 			svcOpts.PasswordList = passwords
+			collapseForEnum(&svcOpts, &mod)
 			svcScanner.Opts = &svcOpts
 
 			// Feed single target

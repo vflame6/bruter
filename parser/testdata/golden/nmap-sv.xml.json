@@ -1,0 +1,42 @@
+[
+  {
+    "Host": "10.10.20.1",
+    "Port": 22,
+    "Service": "ssh"
+  },
+  {
+    "Host": "10.10.20.1",
+    "Port": 636,
+    "Service": "ldap"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 445,
+    "Service": "smb"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 3389,
+    "Service": "rdp"
+  },
+  {
+    "Host": "10.10.20.14",
+    "Port": 5986,
+    "Service": "winrm"
+  },
+  {
+    "Host": "2001:db8:cafe::10",
+    "Port": 22,
+    "Service": "ssh"
+  },
+  {
+    "Host": "2001:db8:cafe::10",
+    "Port": 7687,
+    "Service": "neo4j"
+  },
+  {
+    "Host": "2001:db8:cafe::10",
+    "Port": 50050,
+    "Service": "cobaltstrike"
+  }
+]

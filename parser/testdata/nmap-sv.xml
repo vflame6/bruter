@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/bin/../share/nmap/nmap.xsl" type="text/xsl"?>
+<nmaprun scanner="nmap" args="nmap -sV -oX nmap-sv.xml 10.10.20.0/24" start="1764000723" version="7.95" xmloutputversion="1.05">
+  <scaninfo type="syn" protocol="tcp" numservices="1000"/>
+  <host starttime="1764000723" endtime="1764000881">
+    <status state="up" reason="echo-reply" reason_ttl="63"/>
+    <address addr="10.10.20.1" addrtype="ipv4"/>
+    <hostnames>
+      <hostname name="gw.corp.local" type="PTR"/>
+    </hostnames>
+    <ports>
+      <extraports state="filtered" count="996"/>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack" reason_ttl="63"/>
+        <service name="ssh" product="OpenSSH" version="9.6p1" method="probed" conf="10"/>
+      </port>
+      <port protocol="tcp" portid="23">
+        <state state="closed" reason="reset" reason_ttl="63"/>
+        <service name="telnet" method="table" conf="3"/>
+      </port>
+      <port protocol="tcp" portid="443">
+        <state state="open" reason="syn-ack" reason_ttl="63"/>
+        <service name="http" product="nginx" tunnel="ssl" method="probed" conf="10"/>
+      </port>
+      <port protocol="tcp" portid="636">
+        <state state="open" reason="syn-ack" reason_ttl="63"/>
+        <service name="ldap" tunnel="ssl" method="probed" conf="10"/>
+      </port>
+    </ports>
+  </host>
+  <host>
+    <status state="up" reason="arp-response" reason_ttl="0"/>
+    <address addr="10.10.20.14" addrtype="ipv4"/>
+    <address addr="00:0C:29:4F:8A:1B" addrtype="mac" vendor="VMware"/>
+    <ports>
+      <port protocol="tcp" portid="445">
+        <state state="open" reason="syn-ack" reason_ttl="127"/>
+        <service name="microsoft-ds" product="Windows Server 2022 Standard" method="probed" conf="10"/>
+      </port>
+      <port protocol="tcp" portid="3389">
+        <state state="open" reason="syn-ack" reason_ttl="127"/>
+        <service name="ms-wbt-server" product="Microsoft Terminal Services" method="probed" conf="10"/>
+      </port>
+      <port protocol="tcp" portid="5986">
+        <state state="open" reason="syn-ack" reason_ttl="127"/>
+        <service name="wsmans" tunnel="ssl" method="table" conf="3"/>
+      </port>
+      <port protocol="tcp" portid="9999">
+        <state state="open" reason="syn-ack" reason_ttl="127"/>
+        <service name="unknown" method="table" conf="3"/>
+      </port>
+    </ports>
+  </host>
+  <host>
+    <status state="up" reason="echo-reply" reason_ttl="64"/>
+    <address addr="2001:db8:cafe::10" addrtype="ipv6"/>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack" reason_ttl="64"/>
+        <service name="ssh" product="OpenSSH" version="10.0" method="probed" conf="10"/>
+      </port>
+      <port protocol="tcp" portid="7687">
+        <state state="open" reason="syn-ack" reason_ttl="64"/>
+        <service name="neo4j" method="probed" conf="10"/>
+      </port>
+      <port protocol="tcp" portid="50050">
+        <state state="open" reason="syn-ack" reason_ttl="64"/>
+        <service name="cobaltstrike" method="probed" conf="10"/>
+      </port>
+    </ports>
+  </host>
+  <runstats>
+    <finished time="1764000881" timestr="Mon Nov 24 09:14:41 2026" elapsed="158.22" exit="success"/>
+    <hosts up="3" down="253" total="256"/>
+  </runstats>
+</nmaprun>

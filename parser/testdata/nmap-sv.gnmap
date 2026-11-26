@@ -1,0 +1,9 @@
+# Nmap 7.95 scan initiated Mon Nov 24 09:12:03 2026 as: nmap -sV -sU -oG nmap-sv.gnmap 10.10.20.0/24
+Host: 10.10.20.1 (gw.corp.local)	Status: Up
+Host: 10.10.20.1 (gw.corp.local)	Ports: 22/open/tcp//ssh//OpenSSH 9.6p1 Ubuntu 3ubuntu13.5 (Ubuntu Linux; protocol 2.0)/, 23/closed/tcp//telnet///, 80/open/tcp//http//nginx 1.24.0/, 443/open/tcp//ssl|http//nginx 1.24.0/	Ignored State: filtered (996)
+Host: 10.10.20.14 ()	Ports: 88/open/tcp//kerberos-sec//Microsoft Windows Kerberos (server time: 2026-11-24 09:12Z)/, 445/open/tcp//microsoft-ds//Windows Server 2022 Standard 20348 microsoft-ds/, 3389/open/tcp//ms-wbt-server//Microsoft Terminal Services/, 5985/open/tcp//wsman///, 1433/open/tcp//ms-sql-s//Microsoft SQL Server 2019 15.00.2000/	Ignored State: closed (996)
+Host: 10.10.20.31 (db01.corp.local)	Ports: 3306/open/tcp//mysql//MySQL 8.0.36/, 5432/open/tcp//postgresql//PostgreSQL DB 15.6/, 6379/open/tcp//redis//Redis key-value store 7.2.4/, 9000/open/tcp//clickhouse///, 9042/open/tcp//cassandra///
+Host: 10.10.20.47 ()	Ports: 161/open/udp//snmp//SNMPv1 server; public/, 2002/open/tcp//rpcap///, 102/open/tcp//iso-tsap//Siemens S7 PLC/
+Host: 10.10.20.58 ()	Ports: 993/open/tcp//ssl|imap//Dovecot imapd/, 587/open/tcp//submission//Postfix smtpd/, 7777/open/tcp//unknown///, 31337/open/tcp/////
+Host: 10.10.20.99 ()	Ports: 2375/open/tcp//docker///
+# Nmap done at Mon Nov 24 09:14:41 2026 -- 256 IP addresses (7 hosts up) scanned in 158.22 seconds

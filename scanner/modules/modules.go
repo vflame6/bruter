@@ -91,6 +91,19 @@ var Modules = map[string]Module{
 		},
 	},
 	"imap": {DefaultPort: 143, Handler: IMAPHandler, DefaultUsername: "admin", DefaultPassword: "admin"},
+	// Both Kerberos modules need a realm: --domain, or usernames written as
+	// user@REALM.
+	"kerberos": {
+		DefaultPort: 88, Handler: KerberosHandler,
+		DefaultUsername: "administrator", DefaultPassword: "Password1",
+		// A failed logon here increments the real administrator account's
+		// lockout counter on the domain controller.
+		SkipDefaultCredProbe: true,
+	},
+	"kerberos-enum": {
+		DefaultPort: 88, Handler: KerberosEnumHandler, DefaultUsername: "administrator", DefaultPassword: "",
+		EnumOnly: true,
+	},
 	"influxdb": {
 		DefaultPort: 8086, Handler: InfluxDBHandler, DefaultUsername: "admin", DefaultPassword: "admin",
 		VulnChecks: []VulnCheck{
@@ -255,7 +268,7 @@ var Modules = map[string]Module{
 		},
 	},
 	"smtp":      {DefaultPort: 25, Handler: SMTPHandler, DefaultUsername: "admin", DefaultPassword: "admin"},
-	"smtp-enum": {DefaultPort: 25, Handler: SMTPEnumHandler, DefaultUsername: "admin", DefaultPassword: ""},
+	"smtp-enum": {DefaultPort: 25, Handler: SMTPEnumHandler, DefaultUsername: "admin", DefaultPassword: "", EnumOnly: true},
 	"snmp": {
 		DefaultPort: 161, Handler: SNMPHandler, DefaultUsername: "", DefaultPassword: "public",
 		VulnChecks: []VulnCheck{
@@ -355,6 +368,24 @@ type Module struct {
 	DefaultPassword string
 	VulnChecks      []VulnCheck
 	DefaultCreds    []Credential
+
+	// EnumOnly marks a module that identifies accounts instead of validating
+	// passwords: the credential's password field is ignored. The scanner
+	// collapses the password list to a single entry so each account is probed
+	// once rather than once per password, and never reports the result as a
+	// recovered credential.
+	EnumOnly bool
+
+	// SkipDefaultCredProbe suppresses the default-credential attempt inside
+	// the reachability probe. Set it where that attempt would spend a real
+	// account's lockout budget before the run's own schedule begins.
+	SkipDefaultCredProbe bool
+}
+
+// ProbesDefaultCreds reports whether the reachability probe may submit this
+// module's default credentials.
+func (m Module) ProbesDefaultCreds() bool {
+	return !m.EnumOnly && !m.SkipDefaultCredProbe
 }
 
 // Target is a struct for each bruteforce target

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<NexposeReport version="2.0">
+  <scans>
+    <scan id="4711" name="Corp Internal" status="finished"/>
+  </scans>
+  <nodes>
+    <node address="10.10.20.14" status="alive" device-id="21" site-name="Corp Internal">
+      <names>
+        <name>fs01.corp.local</name>
+      </names>
+      <endpoints>
+        <endpoint protocol="tcp" port="445" status="open">
+          <services>
+            <service name="CIFS Name Service"/>
+            <service name="microsoft-ds"/>
+          </services>
+        </endpoint>
+        <endpoint protocol="tcp" port="3389" status="open">
+          <services>
+            <service name="ms-wbt-server"/>
+          </services>
+        </endpoint>
+        <endpoint protocol="tcp" port="23" status="closed">
+          <services>
+            <service name="telnet"/>
+          </services>
+        </endpoint>
+        <endpoint protocol="tcp" port="5985" status="open">
+          <services>
+            <service name="wsman"/>
+            <service name="winrm"/>
+          </services>
+        </endpoint>
+      </endpoints>
+    </node>
+    <node address="10.10.20.31" status="alive" device-id="22" site-name="Corp Internal">
+      <endpoints>
+        <endpoint protocol="tcp" port="2379" status="open">
+          <services>
+            <service name="etcd-client"/>
+          </services>
+        </endpoint>
+        <endpoint protocol="tcp" port="8086" status="open">
+          <services>
+            <service name="influxdb"/>
+          </services>
+        </endpoint>
+        <endpoint protocol="tcp" port="5984" status="open">
+          <services>
+            <service name="CouchDB"/>
+          </services>
+        </endpoint>
+        <endpoint protocol="tcp" port="9200" status="open">
+          <services>
+            <service name="elasticsearch"/>
+          </services>
+        </endpoint>
+        <endpoint protocol="tcp" port="0" status="open">
+          <services>
+            <service name="ssh"/>
+          </services>
+        </endpoint>
+      </endpoints>
+    </node>
+    <node address="" status="alive" device-id="23">
+      <endpoints>
+        <endpoint protocol="tcp" port="22" status="open">
+          <services>
+            <service name="ssh"/>
+          </services>
+        </endpoint>
+      </endpoints>
+    </node>
+    <node address="10.10.20.47" status="alive" device-id="24">
+      <endpoints>
+        <endpoint protocol="udp" port="161" status="open">
+          <services>
+            <service name="SNMP"/>
+          </services>
+        </endpoint>
+        <endpoint protocol="tcp" port="102" status="open">
+          <services>
+            <service name="iso-tsap"/>
+            <service name="unknown"/>
+          </services>
+        </endpoint>
+      </endpoints>
+    </node>
+  </nodes>
+</NexposeReport>

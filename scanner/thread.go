@@ -35,8 +35,14 @@ func SendTargets(ctx context.Context, targets chan *modules.Target, defaultPort 
 
 // SendCredentials sends credential pairs to the credentials channel.
 // It sends combo pairs first, then the username×password matrix.
+//
+// order selects which value is held constant on the outer loop: OrderPassword
+// (the default) walks every username for one password before moving on, which
+// spreads attempts across accounts; OrderUser exhausts one account's passwords
+// before moving to the next.
+//
 // Exits when the done channel is closed (threads stopped early) or ctx is cancelled.
-func SendCredentials(ctx context.Context, credentials chan *modules.Credential, usernames, passwords []string, comboList []modules.Credential, done <-chan struct{}) {
+func SendCredentials(ctx context.Context, credentials chan *modules.Credential, usernames, passwords []string, comboList []modules.Credential, order string, done <-chan struct{}) {
 	defer close(credentials)
 	// send combo pairs first
 	for i := range comboList {
@@ -48,11 +54,21 @@ func SendCredentials(ctx context.Context, credentials chan *modules.Credential, 
 			return
 		}
 	}
-	// then send username×password matrix
-	for _, pwd := range passwords {
-		for _, user := range usernames {
+
+	outer, inner := passwords, usernames
+	if order == OrderUser {
+		outer, inner = usernames, passwords
+	}
+
+	// then send the username×password matrix in the requested order
+	for _, first := range outer {
+		for _, second := range inner {
+			cred := modules.Credential{Username: second, Password: first}
+			if order == OrderUser {
+				cred = modules.Credential{Username: first, Password: second}
+			}
 			select {
-			case credentials <- &modules.Credential{Username: user, Password: pwd}:
+			case credentials <- &cred:
 			case <-done:
 				return
 			case <-ctx.Done():

@@ -63,6 +63,22 @@ type Options struct {
 	Reversed            bool   // --reversed: try reversed username as password
 	ServiceFilter       string // --service: filter services in all mode
 	Vulns               bool   // --vulns: run auth vulnerability checks and protocol default creds only
+	Domain              string // --domain: AD/Kerberos realm, passed to modules via Target.Extra
+
+	// Spraying
+	Spray              bool          // --spray: lockout-safe campaign, one round per credential group
+	Order              string        // --order: OrderPassword (default) or OrderUser
+	Jitter             time.Duration // --jitter: random +/- applied to Delay between spray rounds
+	MaxAttemptsPerUser int           // --max-attempts-per-user: global cap per username, 0 = unlimited
+
+	// AccountBudget lets a caller that outlives one run keep a single budget
+	// across all of them. Nil means RunSpray builds one from
+	// MaxAttemptsPerUser for its own use.
+	AccountBudget *AccountBudget
+
+	// Checkpointing
+	ResumeFile string      // --resume: path of the checkpoint to load and append to
+	State      *StateStore // opened from ResumeFile in NewScanner; nil disables checkpointing
 }
 
 type Result struct {
@@ -92,6 +108,10 @@ type dashboardConfig struct {
 	VulnCheckCount   int
 	DefaultCredCount int
 	VulnCheckNames   []string
+
+	// Spray mode fields
+	SprayRounds int // number of credential rounds the campaign will run
+	SprayCreds  int // attempts per host after folding duplicate accounts
 }
 
 // printDashboard prints a configuration dashboard before the scan starts.
@@ -126,25 +146,32 @@ func (s *Scanner) printDashboard(cfg dashboardConfig) {
 	}
 
 	// Credentials (shared)
-	if o.Usernames != "" && o.Defaults {
+	switch {
+	case o.Usernames != "" && o.Defaults:
 		fmt.Printf(" [+] Usernames:           %s + built-in (%d)\n", o.Usernames, userCount)
-	} else if o.Usernames != "" {
+	case o.Usernames != "":
 		fmt.Printf(" [+] Usernames:           %s (%d)\n", o.Usernames, userCount)
-	} else if o.Defaults && userCount > 0 {
+	case o.Defaults && userCount > 0:
 		fmt.Printf(" [+] Usernames:           built-in (%d)\n", userCount)
 	}
-	if o.Passwords != "" && o.Defaults {
+	switch {
+	case o.Passwords != "" && o.Defaults:
 		fmt.Printf(" [+] Passwords:           %s + built-in (%d)\n", o.Passwords, passCount)
-	} else if o.Passwords != "" {
+	case o.Passwords != "":
 		fmt.Printf(" [+] Passwords:           %s (%d)\n", o.Passwords, passCount)
-	} else if o.Defaults && passCount > 0 {
+	case o.Defaults && passCount > 0:
 		fmt.Printf(" [+] Passwords:           built-in (%d)\n", passCount)
 	}
 	if o.Combo != "" {
 		fmt.Printf(" [+] Combo file:          %s (%d)\n", o.Combo, comboCount)
 	}
 
-	// Credential count
+	// Credential count. In spray mode the campaign's own total is used: it is
+	// taken after duplicate accounts have been folded together, so the
+	// username-times-password product would overstate it.
+	if o.Spray && cfg.SprayCreds > 0 {
+		totalCreds = int64(cfg.SprayCreds)
+	}
 	if cfg.Module != "" {
 		fmt.Printf(" [+] Credential pairs:    %d\n", totalCreds)
 	} else {
@@ -163,7 +190,27 @@ func (s *Scanner) printDashboard(cfg dashboardConfig) {
 
 	// Common options
 	fmt.Printf(" [+] Timeout:             %s\n", o.Timeout)
-	if o.Delay > 0 {
+
+	if o.Spray {
+		held := "password"
+		if o.Order == OrderUser {
+			held = "username"
+		}
+		fmt.Printf(" [+] Spray:               %d round(s), one %s per round\n", cfg.SprayRounds, held)
+		if o.Jitter > 0 {
+			fmt.Printf(" [+] Round delay:         %s +/- %s\n", o.Delay, o.Jitter)
+		}
+		if o.Jitter == 0 {
+			fmt.Printf(" [+] Round delay:         %s\n", o.Delay)
+		}
+		if o.MaxAttemptsPerUser > 0 {
+			fmt.Printf(" [+] Max per account:     %d attempt(s)\n", o.MaxAttemptsPerUser)
+		}
+		if o.Order == OrderUser {
+			fmt.Printf(" [!] --order user empties one account's lockout budget at a time\n")
+		}
+	}
+	if !o.Spray && o.Delay > 0 {
 		fmt.Printf(" [+] Delay:               %s\n", o.Delay)
 	}
 	if o.Proxy != "" {
@@ -171,6 +218,10 @@ func (s *Scanner) printDashboard(cfg dashboardConfig) {
 	}
 	if o.OutputFileName != "" {
 		fmt.Printf(" [+] Output:              %s\n", o.OutputFileName)
+	}
+	if o.ResumeFile != "" {
+		fmt.Printf(" [+] Checkpoint:          %s (%d attempt(s) already done)\n",
+			o.ResumeFile, o.State.Loaded())
 	}
 	if o.JSON {
 		fmt.Printf(" [+] Format:              JSONL\n")
@@ -186,6 +237,9 @@ func (s *Scanner) printDashboard(cfg dashboardConfig) {
 	}
 	if o.Iface != "" {
 		fmt.Printf(" [+] Interface:           %s\n", o.Iface)
+	}
+	if o.Domain != "" {
+		fmt.Printf(" [+] Realm:               %s\n", strings.ToUpper(o.Domain))
 	}
 	fmt.Println("-------------------------------------------------------")
 }
@@ -277,6 +331,40 @@ func (s *Scanner) loadCredentials() {
 	}
 }
 
+// collapseForEnum reduces the credential set for an enumeration module.
+//
+// Such a module ignores the password entirely, so a list of N passwords would
+// otherwise probe every account N times and report N identical findings per
+// account. One attempt per account is both correct and all the protocol can
+// tell us.
+func collapseForEnum(opts *Options, module *modules.Module) {
+	if !module.EnumOnly {
+		return
+	}
+
+	// Fold combo pairs into the username list: only the account matters.
+	seen := make(map[string]struct{}, len(opts.UsernameList)+len(opts.ComboList))
+	users := make([]string, 0, len(opts.UsernameList)+len(opts.ComboList))
+	for _, user := range opts.UsernameList {
+		if _, dup := seen[user]; dup {
+			continue
+		}
+		seen[user] = struct{}{}
+		users = append(users, user)
+	}
+	for _, cred := range opts.ComboList {
+		if _, dup := seen[cred.Username]; dup {
+			continue
+		}
+		seen[cred.Username] = struct{}{}
+		users = append(users, cred.Username)
+	}
+
+	opts.UsernameList = users
+	opts.PasswordList = []string{""}
+	opts.ComboList = nil
+}
+
 // buildPasswordLists creates default and sshkey password lists for nmap/stdin mode.
 // Returns (defaultPasswords, sshkeyPasswords).
 func (s *Scanner) buildPasswordLists() ([]string, []string) {
@@ -345,6 +433,24 @@ func NewScanner(options *Options) (*Scanner, error) {
 		return nil, errors.New("invalid number for retries")
 	}
 
+	// spraying options
+	switch options.Order {
+	case "":
+		options.Order = OrderPassword
+	case OrderPassword, OrderUser:
+	default:
+		return nil, fmt.Errorf("invalid --order %q, want %q or %q", options.Order, OrderPassword, OrderUser)
+	}
+	if options.Jitter < 0 {
+		return nil, errors.New("--jitter cannot be negative")
+	}
+	if options.Jitter > options.Delay {
+		return nil, errors.New("--jitter cannot exceed --delay")
+	}
+	if options.MaxAttemptsPerUser < 0 {
+		return nil, errors.New("--max-attempts-per-user cannot be negative")
+	}
+
 	// resolve interface binding IP (nil = OS default)
 	var localAddr net.IP
 	if options.Iface != "" {
@@ -378,6 +484,21 @@ func NewScanner(options *Options) (*Scanner, error) {
 		options.OutputFile = outputFile
 	}
 
+	// --resume: load the checkpoint before anything is attempted
+	if options.ResumeFile != "" {
+		state, stateErr := OpenStateStore(options.ResumeFile)
+		if stateErr != nil {
+			return nil, stateErr
+		}
+		options.State = state
+		if loaded := state.Loaded(); loaded > 0 {
+			logger.Infof("resuming from %s: %d attempt(s) already recorded, they will be skipped",
+				options.ResumeFile, loaded)
+		} else {
+			logger.Infof("checkpointing to %s", options.ResumeFile)
+		}
+	}
+
 	parallelTargets := make(chan *modules.Target, options.Parallel*BufferMultiplier)
 	results := make(chan *Result, options.Parallel*BufferMultiplier)
 
@@ -397,6 +518,12 @@ func (s *Scanner) Stop() {
 	if s.Opts.OutputFile != nil {
 		_ = s.Opts.OutputFile.Close()
 		s.Opts.OutputFile = nil // prevent double-close
+	}
+	// Not cleared afterwards: workers hold this same Options pointer, and
+	// StateStore.Close is already idempotent, so nilling it would only add a
+	// field for them to race on.
+	if err := s.Opts.State.Close(); err != nil {
+		logger.Debugf("closing checkpoint %s: %v", s.Opts.ResumeFile, err)
 	}
 }
 
@@ -418,19 +545,21 @@ func (s *Scanner) Run(ctx context.Context, command, targets string) error {
 	}
 
 	// count targets: file (lines), comma-separated, or single host
-	if utils.IsFileExists(targets) {
+	switch {
+	case utils.IsFileExists(targets):
 		count, err = utils.CountLinesInFile(targets)
 		if err != nil {
 			return err
 		}
-	} else if strings.Contains(targets, ",") {
+	case strings.Contains(targets, ","):
 		count = len(strings.Split(targets, ","))
-	} else {
+	default:
 		count = 1
 	}
 
 	// pre-load credentials into memory once
 	s.loadCredentials()
+	collapseForEnum(s.Opts, &c)
 
 	// set target count for progress tracking
 	s.TargetCount = int64(count)
@@ -525,6 +654,8 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 			break
 		}
 
+		s.annotateTarget(target)
+
 		// probe target: check reachability, TLS fallback, and default credentials
 		reachable, defaultCredsWork := s.probe(ctx, module, target)
 		if !reachable {
@@ -574,7 +705,7 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 		// send credentials to threads
 		credentials := make(chan *modules.Credential, s.Opts.Threads*BufferMultiplier)
 		done := make(chan struct{})
-		go SendCredentials(ctx, credentials, s.Opts.UsernameList, s.Opts.PasswordList, s.Opts.ComboList, done)
+		go SendCredentials(ctx, credentials, s.Opts.UsernameList, s.Opts.PasswordList, s.Opts.ComboList, s.Opts.Order, done)
 
 		// run threads
 		var threadWg sync.WaitGroup
@@ -587,25 +718,40 @@ func (s *Scanner) ParallelHandler(ctx context.Context, wg *sync.WaitGroup, modul
 	}
 }
 
+// annotateTarget attaches run options that modules need but cannot reach
+// through the handler signature. Modules read them with Target.GetExtra.
+func (s *Scanner) annotateTarget(target *modules.Target) {
+	if s.Opts.Domain != "" {
+		target.SetExtra(modules.TargetDomainKey, s.Opts.Domain)
+	}
+}
+
 // probe checks if a target is reachable and whether default credentials work.
 // It tries encrypted connection first, falling back to plaintext.
 // Returns (reachable, defaultCredsWork).
 func (s *Scanner) probe(ctx context.Context, module *modules.Module, target *modules.Target) (bool, bool) {
-	logger.Debugf("trying default credentials on %s:%d", target.IP, target.Port)
+	// Enumeration modules answer "this account exists", so a default-credential
+	// probe against them would be reported as a recovered password that was
+	// never checked. Modules that opt out do so because the attempt would
+	// spend a real account's lockout budget. Both only need reachability, and
+	// a principal that does not exist cannot be locked out.
+	report := module.ProbesDefaultCreds()
+
 	cred := &modules.Credential{
 		Username: module.DefaultUsername,
 		Password: module.DefaultPassword,
+	}
+	if !report {
+		cred = s.anonymousProbeCredential()
+		logger.Debugf("probing %s for reachability only, without default credentials", target.Addr())
+	} else {
+		logger.Debugf("trying default credentials on %s:%d", target.IP, target.Port)
 	}
 
 	// try with encryption first (target.Encryption defaults to true)
 	isSuccess, err := module.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, cred)
 	if err == nil {
-		if isSuccess {
-			target.Mutex.Lock()
-			target.Success = true
-			target.Mutex.Unlock()
-		}
-		return true, isSuccess
+		return true, s.recordProbeSuccess(target, isSuccess && report)
 	}
 
 	// fallback to plaintext
@@ -613,16 +759,50 @@ func (s *Scanner) probe(ctx context.Context, module *modules.Module, target *mod
 	target.Encryption = false
 	isSuccess, err = module.Handler(ctx, s.Opts.ProxyDialer, s.Opts.Timeout, target, cred)
 	if err == nil {
-		if isSuccess {
-			target.Mutex.Lock()
-			target.Success = true
-			target.Mutex.Unlock()
-		}
-		return true, isSuccess
+		return true, s.recordProbeSuccess(target, isSuccess && report)
 	}
 
 	logger.Debugf("failed to connect to %s:%d: %v", target.IP, target.Port, err)
 	return false, false
+}
+
+// recordProbeSuccess marks the target solved when the probe really did
+// recover credentials, and returns what it was told so probe can pass it on.
+func (s *Scanner) recordProbeSuccess(target *modules.Target, success bool) bool {
+	if success {
+		target.Mutex.Lock()
+		target.Success = true
+		target.Mutex.Unlock()
+	}
+	return success
+}
+
+// anonymousProbeCredential returns a credential for a principal that should
+// not exist anywhere, qualified with the realm when one is known so that
+// modules which require one can still answer.
+func (s *Scanner) anonymousProbeCredential() *modules.Credential {
+	username := randomPrincipal()
+	if realm := s.probeRealm(); realm != "" {
+		username += "@" + realm
+	}
+	return &modules.Credential{Username: username, Password: randomPrincipal()}
+}
+
+// probeRealm finds a realm to qualify the probe principal with: --domain if
+// given, otherwise one carried by a username in the wordlist.
+func (s *Scanner) probeRealm() string {
+	if s.Opts.Domain != "" {
+		return s.Opts.Domain
+	}
+	for _, user := range s.Opts.UsernameList {
+		if i := strings.LastIndex(user, "@"); i > 0 && i < len(user)-1 {
+			return user[i+1:]
+		}
+		if i := strings.Index(user, `\`); i > 0 && i < len(user)-1 {
+			return user[:i]
+		}
+	}
+	return ""
 }
 
 // runVulnChecks executes module-defined vulnerability checks (e.g. ssh-hole, anonymous login).
@@ -635,7 +815,7 @@ func (s *Scanner) runVulnChecks(ctx context.Context, module *modules.Module, tar
 		if s.Opts.GlobalStop && s.globalDone.Load() {
 			return true
 		}
-		if s.Opts.StopOnSuccess && target.Success {
+		if s.Opts.StopOnSuccess && targetSucceeded(target) {
 			return true
 		}
 
@@ -702,7 +882,7 @@ func (s *Scanner) runDefaultCreds(ctx context.Context, module *modules.Module, t
 		if s.Opts.GlobalStop && s.globalDone.Load() {
 			return true
 		}
-		if s.Opts.StopOnSuccess && target.Success {
+		if s.Opts.StopOnSuccess && targetSucceeded(target) {
 			return true
 		}
 
@@ -772,12 +952,19 @@ func (s *Scanner) ThreadHandler(ctx context.Context, wg *sync.WaitGroup, credent
 			return
 		}
 		// shutdown all threads if --stop-on-success is used and password is found
-		if s.Opts.StopOnSuccess && target.Success {
+		if s.Opts.StopOnSuccess && targetSucceeded(target) {
 			break
 		}
 		// shutdown all threads if number of max retries exceeded
-		if s.Opts.Retries > 0 && target.Retries >= s.Opts.Retries {
+		if s.Opts.Retries > 0 && targetRetries(target) >= s.Opts.Retries {
 			break
+		}
+
+		// --resume: this pair was already evaluated against this service in an
+		// earlier run, so there is nothing to learn from repeating it.
+		if s.Opts.State.Done(target.OriginalTarget, s.Opts.Command, credential.Username, credential.Password) {
+			logger.Debugf("skipping %s:%s on %s, already in the checkpoint", credential.Username, credential.Password, target.Addr())
+			continue
 		}
 
 		logger.Debugf("trying %s:%s on %s:%d", credential.Username, credential.Password, target.IP, target.Port)
@@ -801,6 +988,13 @@ func (s *Scanner) ThreadHandler(ctx context.Context, wg *sync.WaitGroup, credent
 				credential.Password,
 				status,
 			)
+		}
+
+		if err == nil {
+			// The service answered, so this pair is settled either way and a
+			// resumed run can skip it. Errored attempts are deliberately not
+			// recorded: the credential was never actually tested.
+			s.Opts.State.Record(target.OriginalTarget, s.Opts.Command, credential.Username, credential.Password)
 		}
 
 		if err != nil && s.Opts.Retries > 0 {
@@ -831,8 +1025,18 @@ func (s *Scanner) ThreadHandler(ctx context.Context, wg *sync.WaitGroup, credent
 			}
 		}
 
-		if s.Opts.Delay > 0 {
+		// In spray mode --delay is the pause between rounds, applied once by
+		// sprayPause; sleeping it per attempt as well would stretch a round
+		// out by hours.
+		if s.Opts.Delay > 0 && !s.Opts.Spray {
 			time.Sleep(s.Opts.Delay)
 		}
 	}
+}
+
+// targetRetries reads Target.Retries under its mutex.
+func targetRetries(target *modules.Target) int {
+	target.Mutex.Lock()
+	defer target.Mutex.Unlock()
+	return target.Retries
 }

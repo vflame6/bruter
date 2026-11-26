@@ -117,7 +117,10 @@ func sendX224ConnReq(conn net.Conn) error {
 	// TPKT header: version=3, reserved=0, length(2 bytes big-endian)
 	totalLen := 4 + len(x224)
 	tpkt := []byte{tpktVersion, 0x00, byte(totalLen >> 8), byte(totalLen & 0xff)}
-	pkt := append(tpkt, x224...)
+
+	pkt := make([]byte, 0, len(tpkt)+len(x224))
+	pkt = append(pkt, tpkt...)
+	pkt = append(pkt, x224...)
 
 	_, err := conn.Write(pkt)
 	return err
@@ -288,9 +291,19 @@ func buildNTLMAuthenticate(challenge []byte, domain, username, password string) 
 	blob.Write([]byte{0, 0, 0, 0}) // End of target info
 
 	blobBytes := blob.Bytes()
-	temp := append(serverChallenge, blobBytes...)
+
+	// serverChallenge is a sub-slice of the caller's Type 2 message buffer, so
+	// appending to it directly would scribble over challenge[32:] (the target
+	// info block). Build both buffers in freshly allocated slices instead.
+	temp := make([]byte, 0, len(serverChallenge)+len(blobBytes))
+	temp = append(temp, serverChallenge...)
+	temp = append(temp, blobBytes...)
+
 	ntProofStr := hmacMD5(responseKeyNT, temp)
-	ntResponse := append(ntProofStr, blobBytes...)
+
+	ntResponse := make([]byte, 0, len(ntProofStr)+len(blobBytes))
+	ntResponse = append(ntResponse, ntProofStr...)
+	ntResponse = append(ntResponse, blobBytes...)
 
 	// Build Type 3 message
 	domainBytes := toUTF16LE(domain)
@@ -537,12 +550,13 @@ func asn1TLV(tag byte, data []byte) []byte {
 	buf := new(bytes.Buffer)
 	buf.WriteByte(tag)
 	l := len(data)
-	if l < 128 {
+	switch {
+	case l < 128:
 		buf.WriteByte(byte(l))
-	} else if l < 256 {
+	case l < 256:
 		buf.WriteByte(0x81)
 		buf.WriteByte(byte(l))
-	} else {
+	default:
 		buf.WriteByte(0x82)
 		buf.WriteByte(byte(l >> 8))
 		buf.WriteByte(byte(l & 0xff))

@@ -7,10 +7,12 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"sort"
+	"strings"
 	"syscall"
 
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/vflame6/bruter/logger"
+	"github.com/vflame6/bruter/mcpserver"
 	"github.com/vflame6/bruter/scanner"
 	"github.com/vflame6/bruter/scanner/modules"
 	"github.com/vflame6/bruter/utils"
@@ -56,6 +58,21 @@ var (
 	globalStopFlag         = app.Flag("stop-on-success-global", "Stop the entire run on first successful login across all hosts").Short('F').Default("false").Bool()
 	retryFlag              = app.Flag("max-retries", "Number of connection errors to stop bruteforce the host. Specify 0 to disable this behavior").Default("30").Int()
 
+	// spraying flags
+	sprayFlag              = app.Flag("spray", "Lockout-safe spraying: try one credential group against every user and host, then sleep --delay before the next").Default("false").Bool()
+	orderFlag              = app.Flag("order", "Credential ordering: 'password' tries one password across all users (default), 'user' tries all passwords for one user").Short('O').Default("password").Enum("password", "user")
+	jitterFlag             = app.Flag("jitter", "Random variation of up to this much, either way, applied to --delay between spray rounds").Default("0s").Duration()
+	maxAttemptsPerUserFlag = app.Flag("max-attempts-per-user", "Cap authentication attempts per username across the whole run; aborts once every account reaches it. 0 to disable").Default("0").Int()
+
+	// directory flags
+	domainFlag = app.Flag("domain", "Active Directory or Kerberos realm for modules that need one (kerberos, kerberos-enum). Usernames written as user@REALM override it").Default("").String()
+
+	// mcp flag
+	mcpScopeFlag = app.Flag("mcp-scope", "File listing the hosts and CIDR blocks an MCP client may test, one per line. Without it the server exposes read-only tools only").Default("").String()
+
+	// checkpoint flag
+	resumeFlag = app.Flag("resume", "Checkpoint file for attempted credentials. Reused on the next run to skip what was already tried").Default("").String()
+
 	// connection flags
 	proxyFlag     = app.Flag("proxy", "SOCKS-proxy address to use for connection in format IP:PORT").Default("").String()
 	proxyAuthFlag = app.Flag("proxy-auth", "Proxy username and password in format username:password").Default("").String()
@@ -95,7 +112,10 @@ var (
 	imapCommand          = app.Command("imap", "IMAP module (port 143 / 993 TLS)")
 	influxdbCommand      = app.Command("influxdb", "InfluxDB module (port 8086)")
 	ircCommand           = app.Command("irc", "IRC server password module (port 6667)")
+	kerberosCommand      = app.Command("kerberos", "Kerberos pre-authentication module, the usual AD spray channel (port 88, needs --domain)")
+	kerberosEnumCommand  = app.Command("kerberos-enum", "Kerberos user enumeration and AS-REP roastable account discovery, submits no password (port 88, needs --domain)")
 	ldapCommand          = app.Command("ldap", "LDAP module (port 389 / 636 TLS)")
+	mcpCommand           = app.Command("mcp", "Run as a Model Context Protocol server on stdio for use by an AI agent (see --mcp-scope)")
 	memcachedCommand     = app.Command("memcached", "Memcached SASL auth module (port 11211)")
 	mongoCommand         = app.Command("mongo", "MongoDB module (port 27017)")
 	mssqlCommand         = app.Command("mssql", "Microsoft SQL Server module (port 1433)")
@@ -137,7 +157,8 @@ var (
 		allCommand, amqpCommand, asteriskCommand, cassandraCommand, ciscoCommand, ciscoEnableCommand,
 		clickhouseCommand, cobaltStrikeCommand, couchdbCommand, elasticsearchCommand, etcdCommand,
 		firebirdCommand, ftpCommand, httpBasicCommand, httpFormCommand, httpProxyCommand, imapCommand,
-		influxdbCommand, ircCommand, ldapCommand, memcachedCommand, mongoCommand, mssqlCommand,
+		influxdbCommand, ircCommand, kerberosCommand, kerberosEnumCommand, ldapCommand,
+		mcpCommand, memcachedCommand, mongoCommand, mssqlCommand,
 		mysqlCommand, neo4jCommand, nntpCommand, oracleCommand, pop3Command, postgresCommand,
 		radminCommand, rdpCommand, redisCommand, rexecCommand, rloginCommand, rpcapCommand,
 		rshCommand, rtspCommand, s7Command, sipCommand, smbCommand, smppCommand, smtpCommand,
@@ -241,6 +262,83 @@ func ParseArgs() string {
 	return kingpin.MustParse(app.Parse(os.Args[1:]))
 }
 
+// everyUsernameCarriesRealm reports whether each supplied username already
+// names its own realm, as "user@REALM" or "REALM\user". It is used to decide
+// whether --domain is required, so an empty list counts as "no".
+func everyUsernameCarriesRealm(usernameArg, comboArg string) bool {
+	var names []string
+	if usernameArg != "" {
+		names = append(names, utils.LoadLines(usernameArg)...)
+	}
+	if comboArg != "" {
+		for _, line := range utils.LoadLines(comboArg) {
+			user, _, found := strings.Cut(line, ":")
+			if found {
+				names = append(names, user)
+			}
+		}
+	}
+	if len(names) == 0 {
+		return false
+	}
+
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		at := strings.LastIndex(name, "@")
+		slash := strings.Index(name, `\`)
+		if (at <= 0 || at == len(name)-1) && (slash <= 0 || slash == len(name)-1) {
+			return false
+		}
+	}
+	return true
+}
+
+// runMCPServer serves the Model Context Protocol on stdio.
+//
+// The protocol has sole use of stdout, so the real streams are captured first
+// and os.Stdout is then pointed at stderr: the scanner's dashboard and any
+// other direct printing would otherwise be injected into the JSON-RPC stream
+// and break the session.
+func runMCPServer() error {
+	stdin, stdout := os.Stdin, os.Stdout
+	os.Stdout = os.Stderr
+
+	if err := logger.Init(true, *debugFlag); err != nil {
+		return fmt.Errorf("initialize logger: %w", err)
+	}
+	logger.SetOutput(os.Stderr)
+
+	var scope *mcpserver.Scope
+	if *mcpScopeFlag != "" {
+		loaded, err := mcpserver.LoadScope(*mcpScopeFlag)
+		if err != nil {
+			return err
+		}
+		scope = loaded
+		logger.Infof("mcp server scope: %s", strings.Join(scope.Entries(), ", "))
+	} else {
+		logger.Infof("mcp server started without --mcp-scope: credential testing tools are disabled, only read-only tools are exposed")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
+	if err := mcpserver.Serve(ctx, VERSION, scope, stdin, stdout); err != nil && ctx.Err() == nil {
+		return err
+	}
+	return nil
+}
+
 // printServices prints all supported modules with their default ports.
 func printServices() {
 	names := make([]string, 0, len(modules.Modules))
@@ -267,6 +365,15 @@ func main() {
 
 	// parse program arguments
 	command := ParseArgs()
+
+	// MCP mode owns stdio, so it has to be handled before anything can print.
+	if command == "mcp" {
+		if err := runMCPServer(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	// Detect stdin pipe — but only use it when no explicit target/nmap flag is given.
 	// This prevents stdin from hijacking the run when CLI args are provided
@@ -302,15 +409,57 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Enumeration modules ignore the password field, so requiring -p would only
+	// make people invent one.
+	enumOnly := modules.Modules[command].EnumOnly
+
 	// Validate: credentials are required in both modes (unless --combo, --defaults, --vulns, or credential mutation flags are provided)
 	hasCredMutation := *userAsPassFlag || *blankFlag || *reversedFlag
-	if *comboFlag == "" && !*defaultsFlag && !*vulnsFlag && !hasCredMutation && (*usernameFlag == "" || *passwordFlag == "") {
+	if enumOnly && *usernameFlag == "" && *comboFlag == "" && !*defaultsFlag {
+		fmt.Fprintf(os.Stderr, "error: %s enumerates accounts and needs --username or --defaults\n", command)
+		os.Exit(1)
+	}
+	if !enumOnly && *comboFlag == "" && !*defaultsFlag && !*vulnsFlag && !hasCredMutation && (*usernameFlag == "" || *passwordFlag == "") {
 		fmt.Fprintln(os.Stderr, "error: provide --username and --password, --combo, --defaults, --vulns, or credential flags (--user-as-pass/--blank/--reversed), try --help")
 		os.Exit(1)
 	}
 	// Credential mutations require usernames
 	if hasCredMutation && *usernameFlag == "" && !*defaultsFlag {
 		fmt.Fprintln(os.Stderr, "error: --user-as-pass/--blank/--reversed require --username or --defaults, try --help")
+		os.Exit(1)
+	}
+
+	// Kerberos needs a realm. Without one every attempt would fail identically
+	// and trip --max-retries, which reads like the KDC banned us. Usernames
+	// that already carry their own realm are fine, which is why this checks
+	// the wordlist rather than just the flag.
+	needsDomain := command == "kerberos" || command == "kerberos-enum"
+	if needsDomain && *domainFlag == "" && !nmapMode && !stdinMode {
+		if *defaultsFlag || !everyUsernameCarriesRealm(*usernameFlag, *comboFlag) {
+			fmt.Fprintln(os.Stderr, "error: the kerberos modules need a realm: pass --domain corp.local, or write every username as user@REALM")
+			os.Exit(1)
+		}
+	}
+
+	// Validate spraying options
+	if *sprayFlag && (nmapMode || stdinMode) {
+		fmt.Fprintln(os.Stderr, "error: --spray needs a single module command (e.g. 'bruter smb --spray'), not 'all' or piped input")
+		os.Exit(1)
+	}
+	if *sprayFlag && *vulnsFlag {
+		fmt.Fprintln(os.Stderr, "error: --spray cannot be combined with --vulns; the vulnerability pass authenticates outside the spray schedule, which defeats the per-account limits. Run it separately")
+		os.Exit(1)
+	}
+	if *sprayFlag && *delayFlag == 0 {
+		fmt.Fprintln(os.Stderr, "error: --spray requires --delay to set the pause between rounds (e.g. -d 30m)")
+		os.Exit(1)
+	}
+	if *jitterFlag > 0 && *delayFlag == 0 {
+		fmt.Fprintln(os.Stderr, "error: --jitter has nothing to vary without --delay")
+		os.Exit(1)
+	}
+	if *maxAttemptsPerUserFlag > 0 && !*sprayFlag {
+		fmt.Fprintln(os.Stderr, "error: --max-attempts-per-user only applies to --spray runs")
 		os.Exit(1)
 	}
 
@@ -356,6 +505,14 @@ func main() {
 		Iface:               *ifaceFlag,
 		NoStats:             *noStatsFlag,
 		ServiceFilter:       *serviceFilterFlag,
+
+		Spray:              *sprayFlag,
+		Order:              *orderFlag,
+		Jitter:             *jitterFlag,
+		MaxAttemptsPerUser: *maxAttemptsPerUserFlag,
+
+		Domain:     *domainFlag,
+		ResumeFile: *resumeFlag,
 	}
 	// try to create scanner
 	s, err := scanner.NewScanner(&options)
@@ -374,19 +531,31 @@ func main() {
 	}()
 	defer cancel()
 
-	if stdinMode {
+	switch {
+	case stdinMode:
 		// stdin mode: read targets from pipe and auto-route to modules
 		err = s.RunStdinWithResults(ctx, os.Stdin)
 		if err != nil {
 			logger.Fatal(err)
 		}
-	} else if nmapMode {
+	case nmapMode:
 		// nmap mode: parse nmap output and run matching modules
 		err = s.RunNmapWithResults(ctx, *nmapFlag)
 		if err != nil {
 			logger.Fatal(err)
 		}
-	} else {
+	case *sprayFlag:
+		// spray mode: every target resolved up front, one credential round at a time
+		err = s.RunSpray(ctx, command, *targetFlag)
+		if err != nil {
+			logger.Fatal(err)
+		}
+
+		s.Stop()
+		if !*quietFlag {
+			logger.Infof("finished spraying %s module", command)
+		}
+	default:
 		// normal mode: run selected module against targets
 		err = s.Run(ctx, command, *targetFlag)
 		if err != nil {

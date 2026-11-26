@@ -65,8 +65,9 @@ func ParseFileByLine(filename string) <-chan string {
 	go func() {
 		defer close(out)
 
+		switch {
 		// if filename is a real file, parse it
-		if IsFileExists(filename) {
+		case IsFileExists(filename):
 			f, err := os.Open(filename)
 			if err != nil {
 				return
@@ -84,7 +85,7 @@ func ParseFileByLine(filename string) <-chan string {
 			if err := scanner.Err(); err != nil {
 				logger.Debugf("error while reading file %s: %v", filename, err)
 			}
-		} else if strings.Contains(filename, ",") {
+		case strings.Contains(filename, ","):
 			// comma-separated list of targets
 			for _, part := range strings.Split(filename, ",") {
 				t := strings.TrimSpace(part)
@@ -92,7 +93,7 @@ func ParseFileByLine(filename string) <-chan string {
 					out <- t
 				}
 			}
-		} else {
+		default:
 			// single value
 			out <- filename
 		}

@@ -20,6 +20,7 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: 1.26.x
+          cache: true
       - name: "Create release on GitHub"
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -27,4 +28,6 @@ jobs:
           version: latest
           args: release --clean
         env:
+          # Also used to commit Casks/bruter.rb back to this repo, which is
+          # why the Homebrew tap needs no separate token.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

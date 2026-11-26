@@ -111,11 +111,12 @@ func (l *Logger) Fatal(v ...interface{}) {
 	l.clearLine()
 	msg := fmt.Sprint(v...)
 
-	if l.quiet {
+	switch {
+	case l.quiet:
 		_, _ = fmt.Fprintln(l.output, msg)
-	} else if l.debug {
+	case l.debug:
 		_, _ = fmt.Fprintf(l.output, "%s [FATAL] %s\n", timestamp(), msg)
-	} else {
+	default:
 		_, _ = fmt.Fprintf(l.output, "[FATAL] %s\n", msg)
 	}
 
@@ -130,11 +131,12 @@ func (l *Logger) Fatalf(format string, v ...interface{}) {
 	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
 
-	if l.quiet {
+	switch {
+	case l.quiet:
 		_, _ = fmt.Fprintln(l.output, msg)
-	} else if l.debug {
+	case l.debug:
 		_, _ = fmt.Fprintf(l.output, "%s [FATAL] %s\n", timestamp(), msg)
-	} else {
+	default:
 		_, _ = fmt.Fprintf(l.output, "[FATAL] %s\n", msg)
 	}
 
@@ -254,11 +256,12 @@ func (l *Logger) Success(v ...interface{}) {
 	l.clearLine()
 	msg := fmt.Sprint(v...)
 
-	if l.quiet {
+	switch {
+	case l.quiet:
 		_, _ = fmt.Fprintln(l.output, msg)
-	} else if l.debug {
+	case l.debug:
 		_, _ = fmt.Fprintf(l.output, "%s [+] %s\n", timestamp(), msg)
-	} else {
+	default:
 		_, _ = fmt.Fprintf(l.output, "[+] %s\n", msg)
 	}
 }
@@ -271,11 +274,12 @@ func (l *Logger) Successf(format string, v ...interface{}) {
 	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
 
-	if l.quiet {
+	switch {
+	case l.quiet:
 		_, _ = fmt.Fprintln(l.output, msg)
-	} else if l.debug {
+	case l.debug:
 		_, _ = fmt.Fprintf(l.output, "%s [+] %s\n", timestamp(), msg)
-	} else {
+	default:
 		_, _ = fmt.Fprintf(l.output, "[+] %s\n", msg)
 	}
 }
@@ -301,11 +305,12 @@ func (l *Logger) Fail(v ...interface{}) {
 	l.clearLine()
 	msg := fmt.Sprint(v...)
 
-	if l.quiet {
+	switch {
+	case l.quiet:
 		_, _ = fmt.Fprintln(l.output, msg)
-	} else if l.debug {
+	case l.debug:
 		_, _ = fmt.Fprintf(l.output, "%s [-] %s\n", timestamp(), msg)
-	} else {
+	default:
 		_, _ = fmt.Fprintf(l.output, "[-] %s\n", msg)
 	}
 }
@@ -318,11 +323,12 @@ func (l *Logger) Failf(format string, v ...interface{}) {
 	l.clearLine()
 	msg := fmt.Sprintf(format, v...)
 
-	if l.quiet {
+	switch {
+	case l.quiet:
 		_, _ = fmt.Fprintln(l.output, msg)
-	} else if l.debug {
+	case l.debug:
 		_, _ = fmt.Fprintf(l.output, "%s [-] %s\n", timestamp(), msg)
-	} else {
+	default:
 		_, _ = fmt.Fprintf(l.output, "[-] %s\n", msg)
 	}
 }

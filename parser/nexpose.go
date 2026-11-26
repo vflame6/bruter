@@ -10,14 +10,14 @@ import (
 
 // nexposeNode represents a host in Nexpose XML export.
 type nexposeNode struct {
-	Address   string             `xml:"address,attr"`
-	Endpoints []nexposeEndpoint  `xml:"endpoints>endpoint"`
+	Address   string            `xml:"address,attr"`
+	Endpoints []nexposeEndpoint `xml:"endpoints>endpoint"`
 }
 
 type nexposeEndpoint struct {
-	Port     string          `xml:"port,attr"`
-	Status   string          `xml:"status,attr"`
-	Protocol string          `xml:"protocol,attr"`
+	Port     string           `xml:"port,attr"`
+	Status   string           `xml:"status,attr"`
+	Protocol string           `xml:"protocol,attr"`
 	Services []nexposeService `xml:"services>service"`
 }
 

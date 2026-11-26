@@ -1,3 +1,178 @@
+version: 2
+
+project_name: bruter
+
+before:
+  hooks:
+    - go mod download
+    - go mod verify
+    - mkdir -p completions
+    # kingpin generates these from the live command tree, so they never drift
+    # from the module registry. Shipped in archives, packages and the formula.
+    - sh -c "go run . --completion-script-bash > completions/bruter.bash"
+    - sh -c "go run . --completion-script-zsh > completions/bruter.zsh"
+
 builds:
-  - ldflags:
+  - id: bruter
+    main: .
+    binary: bruter
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
       - -s -w -X main.VERSION={{.Tag}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - "386"
+    ignore:
+      - goos: darwin
+        goarch: "386"
+
+archives:
+  - id: bruter
+    ids:
+      - bruter
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - README.md
+      - src: completions/*
+        dst: completions
+
+nfpms:
+  - id: bruter
+    ids:
+      - bruter
+    package_name: bruter
+    file_name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    vendor: vflame6
+    homepage: https://github.com/vflame6/bruter
+    maintainer: vflame6 <vflame6x@gmail.com>
+    description: |-
+      Network services bruteforce tool.
+      bruter tests credentials against 56 network protocols from a single static
+      binary and can drive itself straight from nmap, Nessus or Nexpose scan
+      output. Intended for authorized security testing only.
+    license: MIT
+    section: net
+    priority: optional
+    formats:
+      - deb
+      - rpm
+      - apk
+      - archlinux
+    bindir: /usr/bin
+    contents:
+      - src: ./completions/bruter.bash
+        dst: /usr/share/bash-completion/completions/bruter
+        file_info:
+          mode: 0644
+      - src: ./completions/bruter.zsh
+        dst: /usr/share/zsh/site-functions/_bruter
+        file_info:
+          mode: 0644
+      - src: ./README.md
+        dst: /usr/share/doc/bruter/README.md
+        file_info:
+          mode: 0644
+      - src: ./LICENSE
+        dst: /usr/share/doc/bruter/LICENSE
+        file_info:
+          mode: 0644
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+    rpm:
+      group: Applications/Internet
+    archlinux:
+      packager: vflame6 <vflame6x@gmail.com>
+
+homebrew_casks:
+  - name: bruter
+    ids:
+      - bruter
+    # The cask lives in this repo rather than a separate homebrew-tap, so
+    # there is no second repository to create and no personal access token to
+    # manage: the release workflow's own GITHUB_TOKEN can push here.
+    #
+    # The cost is that `brew tap` needs the URL spelled out once, because the
+    # short form of the command assumes a repository named homebrew-<tap>.
+    repository:
+      owner: vflame6
+      name: bruter
+      branch: main
+    directory: Casks
+    homepage: https://github.com/vflame6/bruter
+    description: Network services bruteforce tool covering 56 protocols
+    license: MIT
+    binaries:
+      - bruter
+    completions:
+      bash: completions/bruter.bash
+      zsh: completions/bruter.zsh
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    hooks:
+      post:
+        # Release binaries are not notarized, so Gatekeeper refuses to run them
+        # until the quarantine attribute is stripped.
+        install_steps: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/bruter"]
+          end
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  draft: false
+  prerelease: auto
+  footer: |
+    ---
+
+    ### Install
+
+    ```shell
+    # Debian / Ubuntu / Kali
+    sudo dpkg -i bruter_{{ trimprefix .Tag "v" }}_linux_amd64.deb
+
+    # Fedora / RHEL
+    sudo rpm -i bruter_{{ trimprefix .Tag "v" }}_linux_amd64.rpm
+
+    # macOS
+    brew tap vflame6/bruter https://github.com/vflame6/bruter
+    brew install bruter
+    ```
+
+    `bruter` is for authorized security testing only.
